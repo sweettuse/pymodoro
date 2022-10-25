@@ -26,16 +26,20 @@ class CountdownTimer(Static):
         self._update()
 
     def start(self):
-        if not self._running:
-            self._running = True
-            self._start = monotonic()
-            self._refresh_timer.resume()
+        if self._running:
+            return 
+
+        self._running = True
+        self._start = monotonic()
+        self._refresh_timer.resume()
 
     def stop(self):
-        if self._running:
-            self._running = False
-            self._elapsed += self._elapsed_since_start
-            self._refresh_timer.pause()
+        if not self._running:
+            return
+
+        self._running = False
+        self._elapsed += self._elapsed_since_start
+        self._refresh_timer.pause()
 
     def _update(self):
         self.update(self)
