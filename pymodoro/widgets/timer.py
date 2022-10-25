@@ -24,31 +24,38 @@ class CountdownTimer(Static):
         self.total_seconds = 25 * 60 - 55
         self._refresh_timer = self.set_interval(1 / 10, self._update, pause=True)
         self._update()
-        self.start()
 
     def start(self):
         if not self._running:
             self._running = True
-            self._refresh_timer.resume()
             self._start = monotonic()
+            self._refresh_timer.resume()
 
     def stop(self):
         if self._running:
             self._running = False
-            self._elapsed = self.total_elapsed
+            self._elapsed += self._elapsed_since_start
             self._refresh_timer.pause()
 
     def _update(self):
-        minutes, seconds = divmod(round(self.remaining), 60)
-        self.update(f"{minutes:02d}:{seconds:02d}")
+        self.update(self)
 
     @property
     def total_elapsed(self):
-        return self._elapsed + (monotonic() - self._start)
+        extra = self._elapsed_since_start if self._running else 0.0
+        return self._elapsed + extra
+
+    @property
+    def _elapsed_since_start(self):
+        return monotonic() - self._start
 
     @property
     def remaining(self) -> float:
         return max(0.0, self.total_seconds - self.total_elapsed)
+
+    def __rich_console__(self, *_):
+        minutes, seconds = divmod(round(self.remaining), 60)
+        yield f"{minutes:02d}:{seconds:02d}"
 
 
 class TimerButton(Button):
