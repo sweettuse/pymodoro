@@ -1,0 +1,37 @@
+
+CountdownTimerWidget {
+    layout: horizontal;
+    /* background: $boost; */
+    height: 9;
+    padding: 1;
+    margin: 1;
+    border: heavy round purple;
+    overflow-y: auto;
+    /* overflow-x: scroll; */
+}
+
+CountdownTimer {
+    width: 10;
+    height: 3;
+    padding: 2;
+    content-align: center middle;
+}
+
+Button {
+    padding: 0;
+    margin: 1;
+}
+
+TextInput {
+    height: 5;
+    border: heavy round purple;
+    width: 40;
+}
+
+/*
+CountdownTimerWidget {
+    content-align: center middle;
+    height: 3;
+    layout: horizontal;
+
+} */

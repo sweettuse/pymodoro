@@ -14,23 +14,26 @@ from textual.reactive import reactive
 from textual.widgets import Button, Header, Footer, Static
 
 
-class CountdownTimer(Static):
+class CountdownTimer(Static, can_focus=True):
     CSS_PATH = "css/timer.css"
+
+    def __init__(self, total_seconds=25*60):
+        super().__init__()
+        self.total_seconds = total_seconds
 
     def on_mount(self):
         self._running = False
         self._elapsed = 0.0
-        self._start = 0.0
-        self.total_seconds = 25 * 60 - 55
+        self._start_time = 0.0
         self._refresh_timer = self.set_interval(1 / 10, self._update, pause=True)
         self._update()
 
     def start(self):
         if self._running:
-            return 
+            return
 
         self._running = True
-        self._start = monotonic()
+        self._start_time = monotonic()
         self._refresh_timer.resume()
 
     def stop(self):
@@ -51,7 +54,7 @@ class CountdownTimer(Static):
 
     @property
     def _elapsed_since_start(self):
-        return monotonic() - self._start
+        return monotonic() - self._start_time
 
     @property
     def remaining(self) -> float:
@@ -72,9 +75,8 @@ class TimerButton(Button):
 
 
 def timer_container() -> Container:
-    ct = CountdownTimer()
     return Container(
-        ct,
+        (ct := CountdownTimer()),
         Horizontal(
             TimerButton("start", ct.start, variant="success"),
             TimerButton("stop", ct.stop, variant="error"),

@@ -12,16 +12,19 @@ from textual.widgets import Button, Header, Footer, Static
 
 
 class TextInput(Static, can_focus=True):
-    CSS_PATH = "css/text_input.css"
+    # CSS_PATH = "css/text_input.css"
 
     text = reactive("")
     _cursor = reactive(0)
 
-    def on_mount(self):
+    def __init__(self, max_width=None):
+        pass
+
+    def on_mount(self) -> None:
         self.expand = True
 
     @property
-    def cursor(self):
+    def cursor(self) -> int:
         return self._cursor
 
     @cursor.setter
@@ -29,7 +32,7 @@ class TextInput(Static, can_focus=True):
         self._cursor = max(min(len(self.text), value), 0)
 
     @property
-    def _split(self):
+    def _split(self) -> tuple[str, str, str]:
         return tuple(self.text[s] for s in self._slices)
 
     @property
