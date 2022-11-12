@@ -1,7 +1,9 @@
 from __future__ import annotations
+import asyncio
 
-from time import monotonic
+from time import monotonic, sleep
 from contextlib import suppress
+from typing import Any
 from textual.app import App, ComposeResult
 
 from textual.containers import Container, Horizontal
@@ -13,86 +15,63 @@ from rich.segment import Segment
 from textual.reactive import reactive
 from textual.widgets import Button, Header, Footer, Static
 
+from threading import RLock
+
+from pymodoro.utils import StateManagement, classproperty
+
 
 class CountdownTimer(Static, can_focus=True):
     CSS_PATH = "css/timer.css"
 
-    def __init__(self, total_seconds=25*60):
-        super().__init__()
-        self.total_seconds = total_seconds
+    # @classproperty
+    # def state_attrs(cls):
+    #     return 'initial_seconds', '_active', '_elapsed', '_mark_time'
+
+    def __init__(self, initial_seconds=25 * 60, *, id=None):
+        super().__init__(id=id)
+        self.initial_seconds = initial_seconds
+        self._active = False
+        self._elapsed = 0.0
+        self._mark_time = 0.0
 
     def on_mount(self):
-        self._running = False
-        self._elapsed = 0.0
-        self._start_time = 0.0
-        self._refresh_timer = self.set_interval(1 / 10, self._update, pause=True)
+        self._refresh_timer = self.set_interval(1 / 60, self._update, pause=True)
         self._update()
 
     def start(self):
-        if self._running:
+        if self._active:
             return
 
-        self._running = True
-        self._start_time = monotonic()
+        self._active = True
+        self._mark_time = monotonic()
         self._refresh_timer.resume()
 
     def stop(self):
-        if not self._running:
+        if not self._active:
             return
 
-        self._running = False
-        self._elapsed += self._elapsed_since_start
         self._refresh_timer.pause()
+        self._active = False
+        self._elapsed += self._since_last_mark
+        self._update()
 
     def _update(self):
         self.update(self)
 
     @property
-    def total_elapsed(self):
-        extra = self._elapsed_since_start if self._running else 0.0
-        return self._elapsed + extra
-
-    @property
-    def _elapsed_since_start(self):
-        return monotonic() - self._start_time
-
-    @property
     def remaining(self) -> float:
-        return max(0.0, self.total_seconds - self.total_elapsed)
+        return max(0.0, self.initial_seconds - self.total_elapsed)
+
+    @property
+    def total_elapsed(self):
+        current = self._since_last_mark if self._active else 0.0
+        return self._elapsed + current
+
+    @property
+    def _since_last_mark(self):
+        return monotonic() - self._mark_time
 
     def __rich_console__(self, *_):
-        minutes, seconds = divmod(round(self.remaining), 60)
-        yield f"{minutes:02d}:{seconds:02d}"
-
-
-class TimerButton(Button):
-    def __init__(self, label, fn, **button_args):
-        super().__init__(label=label, **button_args)
-        self.fn = fn
-
-    def on_click(self):
-        self.fn()
-
-
-def timer_container() -> Container:
-    return Container(
-        (ct := CountdownTimer()),
-        Horizontal(
-            TimerButton("start", ct.start, variant="success"),
-            TimerButton("stop", ct.stop, variant="error"),
-            classes="buttons",
-        ),
-        id="timer_containers",
-    )
-
-
-class TimerTest(App):
-    CSS_PATH = "css/timer.css"
-
-    def compose(self) -> ComposeResult:
-        yield timer_container()
-        yield timer_container()
-
-
-if __name__ == "__main__":
-    TimerTest().run()
+        self.log(f"{self._active}, {self.total_elapsed=}")
+        minutes, seconds = divmod(self.remaining, 60)
+        yield f"{minutes:02.0f}:{seconds:05.2f}"

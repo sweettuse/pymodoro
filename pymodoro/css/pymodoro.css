@@ -1,3 +1,5 @@
+$desc_color: blue;
+$linear_color: purple;
 
 CountdownTimerWidget {
     layout: horizontal;
@@ -11,7 +13,7 @@ CountdownTimerWidget {
 }
 
 CountdownTimer {
-    width: 10;
+    width: 12;
     height: 3;
     padding: 2;
     content-align: center middle;
@@ -22,10 +24,24 @@ Button {
     margin: 1;
 }
 
-TextInput {
+#linear {
     height: 5;
-    border: heavy round purple;
+    border: round $linear_color;
+    width: 20;
+}
+
+#linear:focus {
+    border: tall $linear_color;
+}
+
+#description {
+    height: 5;
+    border: round $desc_color;
     width: 40;
+}
+
+#description:focus {
+    border: tall $desc_color;
 }
 
 /*
