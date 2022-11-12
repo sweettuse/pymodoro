@@ -1,7 +1,7 @@
 $desc_color: blue;
 $linear_color: purple;
 
-CountdownTimerWidget {
+CountdownTimerContainer {
     layout: horizontal;
     /* background: $boost; */
     height: 9;
@@ -12,7 +12,7 @@ CountdownTimerWidget {
     /* overflow-x: scroll; */
 }
 
-CountdownTimer {
+CountdownTimerWidget {
     width: 12;
     height: 3;
     padding: 2;
