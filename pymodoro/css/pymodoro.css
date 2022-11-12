@@ -3,11 +3,12 @@ $linear_color: purple;
 
 CountdownTimerContainer {
     layout: horizontal;
-    /* background: $boost; */
-    height: 9;
+    background: $boost;
+    height: 7;
     padding: 1;
     margin: 1;
-    border: heavy round purple;
+    /* dock: top; */
+    /* border: heavy round grey; */
     overflow-y: auto;
     /* overflow-x: scroll; */
 }
@@ -19,9 +20,18 @@ CountdownTimerWidget {
     content-align: center middle;
 }
 
+CountdownTimerContainer.active {
+    background: palevioletred;
+}
+CountdownTimerContainer:focus {
+    background: yellowgreen;
+}
+
 Button {
     padding: 0;
     margin: 1;
+    width: 13;
+    min-width: 4;
 }
 
 #linear {
@@ -43,6 +53,7 @@ Button {
 #description:focus {
     border: tall $desc_color;
 }
+
 
 /*
 CountdownTimerWidget {

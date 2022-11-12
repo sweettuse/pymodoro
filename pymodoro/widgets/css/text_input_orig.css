@@ -1,0 +1,22 @@
+#text_input_app {
+    layout: grid;
+    grid-size: 2 2;
+    grid-columns: 1fr;
+}
+
+TextInputOrig {  
+    background: $surface;
+    color: yellow;       
+    overflow-y: auto;
+    border: round purple;
+    height: 100%;
+    /* color: rgb(230, 55, 230); */
+}
+
+TextInputOrig:hover {
+    border: round $secondary;
+}
+
+TextInputOrig:focus {
+    border: round $accent;
+}

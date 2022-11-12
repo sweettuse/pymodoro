@@ -6,6 +6,7 @@ from contextlib import suppress
 from typing import Any
 from textual.app import App, ComposeResult
 
+from textual.message import Message, MessageTarget
 from textual.containers import Container, Horizontal
 from textual import events
 from textual.scroll_view import ScrollView
@@ -17,6 +18,8 @@ from textual.widgets import Button, Header, Footer, Static
 
 
 class Period:
+    """track an ongoing period of time and how much has elapsed"""
+
     def __init__(self):
         self._start = self._end = 0.0
 
@@ -29,7 +32,8 @@ class Period:
         return monotonic() - start
 
     @property
-    def elapsed(self):
+    def elapsed(self) -> float:
+        """how many seconds have elapsed in this period"""
         if self._start:  # is it running?
             self._end = monotonic()
         return self._end - self._start
@@ -44,12 +48,13 @@ class CountdownTimer:
         self._elapsed = 0.0
         self.period = Period()
 
-    def start(self):
-        if self._active:
-            return
+    def start(self) -> bool:
+        if self._active or not self.remaining:
+            return False
 
         self._active = True
         self.period.start()
+        return True
 
     def stop(self):
         if not self._active:
@@ -59,15 +64,17 @@ class CountdownTimer:
         self._active = False
 
     @property
-    def active(self):
+    def is_active(self) -> bool:
         return self._active
 
     @property
     def remaining(self) -> float:
+        """how many seconds remaining"""
         return max(0.0, self.initial_seconds - self.total_elapsed)
 
     @property
-    def total_elapsed(self):
+    def total_elapsed(self) -> float:
+        """how much time has elapsed"""
         return self._elapsed + self.period.elapsed
 
 
@@ -76,28 +83,37 @@ class CountdownTimerWidget(Static, can_focus=True):
 
     CSS_PATH = "css/timer.css"
 
-    def __init__(self, *, countdown_timer: CountdownTimer, id=None):
+    class Stopped(Message):
+        """indicate that app has stopped or paused"""
+
+        def __init__(self, sender: MessageTarget, remaining: float):
+            self.remaining = remaining
+            super().__init__(sender)
+
+    def __init__(self, countdown_timer: CountdownTimer, *, id=None):
         super().__init__(id=id)
         self.ct = countdown_timer
 
-    def on_mount(self):
+    async def on_mount(self):
         self._refresh_timer = self.set_interval(1 / 60, self._update, pause=True)
-        self._update()
+        await self._update()
 
-    def start(self):
-        self.ct.start()
+    async def start(self):
+        if not self.ct.start():
+            return False
         self._refresh_timer.resume()
+        return True
 
-    def stop(self):
+    async def stop(self):
+        if not self.ct.is_active:
+            return
         self._refresh_timer.pause()
         self.ct.stop()
-        self._update()
+        await self._update()
+        await self.emit(self.Stopped(self, self.ct.remaining))
 
-    def _update(self):
-        if self.ct.active and not self.ct.remaining:
-            self.stop()
-        self.update(self)
-
-    def __rich_console__(self, *_):
+    async def _update(self):
+        if self.ct.is_active and not self.ct.remaining:
+            await self.stop()
         minutes, seconds = divmod(self.ct.remaining, 60)
-        yield f"{minutes:02.0f}:{seconds:05.2f}"
+        self.update(f"{minutes:02.0f}:{seconds:05.2f}")
