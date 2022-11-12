@@ -29,7 +29,7 @@ class CountdownTimerContainer(Static, can_focus=True):
             TextInput(id="linear", placeholder="linear issue id..."),
             TextInput(id="description", placeholder="description"),
             Button("start", id="start", variant="success"),
-            CountdownTimerWidget(countdown_timer=CountdownTimer(60)),
+            CountdownTimerWidget(countdown_timer=CountdownTimer(10)),
             Button("stop", id="stop", variant="error"),
         )
 

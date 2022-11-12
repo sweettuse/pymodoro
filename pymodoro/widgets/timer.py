@@ -59,6 +59,10 @@ class CountdownTimer:
         self._active = False
 
     @property
+    def active(self):
+        return self._active
+
+    @property
     def remaining(self) -> float:
         return max(0.0, self.initial_seconds - self.total_elapsed)
 
@@ -90,6 +94,8 @@ class CountdownTimerWidget(Static, can_focus=True):
         self._update()
 
     def _update(self):
+        if self.ct.active and not self.ct.remaining:
+            self.stop()
         self.update(self)
 
     def __rich_console__(self, *_):
