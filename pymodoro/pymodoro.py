@@ -79,18 +79,20 @@ class CountdownTimerContainer(Static, can_focus=True):
         print(ctw)
         print("--------------------")
 
-    def change_time(self):
-        self.query_one(CountdownTimerWidget).toggle_class("hidden")
-        ti = self.query_one(TimeInput)
-        ti.toggle_class("hidden")
-        if not ti.has_class("hidden"):
-            ti.focus()
+    def enter_edit_time(self):
+        self.query_one(CountdownTimerWidget).add_class("hidden")
+        (ti := self.query_one(TimeInput)).remove_class("hidden")
+        ti.focus()
+
+    def exit_edit_time(self):
+        self.query_one(CountdownTimerWidget).remove_class("hidden")
+        self.query_one(TimeInput).add_class("hidden")
 
     async def on_time_input_new_total_seconds(self, msg: TimeInput.NewTotalSeconds):
         ctw = self.query_one(CountdownTimerWidget)
         ctw.ct.initial_seconds = msg.total_seconds
         await ctw._update()
-        self.change_time()
+        self.exit_edit_time()
 
 
 class Pymodoro(App):
@@ -101,7 +103,7 @@ class Pymodoro(App):
         Binding("escape", "focus_container", "focus outer container", show=False),
         Binding("j", "move_next", "move next", key_display="j"),
         Binding("k", "move_prev", "move prev", key_display="k"),
-        Binding("e", "change_time", "change remaining time", key_display="e"),
+        Binding("e", "edit_time", "edit total time", key_display="e"),
     ]
 
     def compose(self) -> ComposeResult:
@@ -142,7 +144,7 @@ class Pymodoro(App):
 
         return i, ctcs
 
-    def _focus_ctc(self, offset: int) -> None:
+    def _focus_ctc(self, offset: int) -> Optional[CountdownTimerContainer]:
         """set focus to ctc by offset"""
         if not (focused := self._find_focused_or_focused_within()):
             return
@@ -155,6 +157,7 @@ class Pymodoro(App):
 
         ctc = ctcs[(idx + offset) % len(ctcs)]
         ctc.focus()
+        return ctc
 
     def action_move_next(self):
         self._focus_ctc(1)
@@ -163,15 +166,19 @@ class Pymodoro(App):
         self._focus_ctc(-1)
 
     def action_focus_container(self):
+        if ctc := self._focus_ctc(0):
+            ctc.exit_edit_time()
+
+    def on_time_input_new_total_seconds(self, _):
         self._focus_ctc(0)
 
-    def action_change_time(self):
+    def action_edit_time(self):
         if not (focused := self._find_focused_or_focused_within()):
             return
 
         idx, ctcs = focused
         ctc = ctcs[idx or 0]
-        ctc.change_time()
+        ctc.enter_edit_time()
 
 
 if __name__ == "__main__":
