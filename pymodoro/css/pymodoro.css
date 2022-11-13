@@ -1,5 +1,7 @@
 $desc_color: blue;
 $linear_color: purple;
+$timer_width: 16;
+$text_padding: 1 0 1 1;
 
 CountdownTimerContainer {
     layout: horizontal;
@@ -14,7 +16,7 @@ CountdownTimerContainer {
 }
 
 CountdownTimerWidget {
-    width: 12;
+    width: $timer_width;
     height: 3;
     padding: 2;
     content-align: center middle;
@@ -30,7 +32,7 @@ CountdownTimerContainer:focus {
 Button {
     padding: 0;
     margin: 1;
-    width: 13;
+    width: 12;
     min-width: 4;
 }
 
@@ -38,6 +40,7 @@ Button {
     height: 5;
     border: round $linear_color;
     width: 20;
+    padding: $text_padding;
 }
 
 #linear:focus {
@@ -48,12 +51,27 @@ Button {
     height: 5;
     border: round $desc_color;
     width: 40;
+    padding: $text_padding;
+}
+
+#time_input {
+    width: $timer_width;
+    height: 5;
+    border: round $desc_color;
+    border: none;
+    padding: 2;
 }
 
 #description:focus {
     border: tall $desc_color;
 }
 
+#time_input {
+}
+
+.hidden {
+    display: none;
+}
 
 /*
 CountdownTimerWidget {

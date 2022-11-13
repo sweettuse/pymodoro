@@ -12,6 +12,7 @@ from rich.color import Color
 from rich.style import Style
 from rich.segment import Segment
 from textual.reactive import reactive
+from textual.message import Message, MessageTarget
 from textual.widgets import Button, Header, Footer, Static, TextLog, Input
 from textual.containers import Horizontal
 from textual.binding import Binding
@@ -23,6 +24,30 @@ from uuid import uuid4
 id_gen = count()
 
 
+class TimeInput(TextInput):
+    class NewTotalSeconds(Message):
+        def __init__(self, sender: MessageTarget, new_total_seconds: float):
+            super().__init__(sender)
+            self.total_seconds = new_total_seconds
+
+    async def action_submit(self):
+        if new_seconds := self._to_seconds():
+            await self.emit(self.NewTotalSeconds(self, new_seconds))
+
+    def _to_seconds(self) -> Optional[float]:
+        fields = self.value.split(":")
+        if len(fields) > 3:
+            return None
+
+        m = 1
+        res = 0.0
+        with suppress(Exception):
+            for f in reversed(fields):
+                res += m * float(f)
+                m *= 60
+            return res
+
+
 class CountdownTimerContainer(Static, can_focus=True):
     def compose(self) -> ComposeResult:
         yield Horizontal(
@@ -30,6 +55,7 @@ class CountdownTimerContainer(Static, can_focus=True):
             TextInput(id="description", placeholder="description"),
             Button("start", id="start", variant="success"),
             CountdownTimerWidget(CountdownTimer(10)),
+            TimeInput(id="time_input", classes="hidden"),
             Button("stop", id="stop", variant="error"),
         )
 
@@ -47,40 +73,35 @@ class CountdownTimerContainer(Static, can_focus=True):
     ):
         self.remove_class("active")
 
-    def on_key(self, event: events.Key):
-        if event.key == "escape":
-            print("ESCAPE BITCHES")
-            self.parent.focus()
+    def dump_state(self):
+        ctw = self.query_one(CountdownTimerWidget)
+        print("____________________")
+        print(ctw)
+        print("--------------------")
 
-    def action_dump_state(self):
-        # TODO: implement
-        self.log("dump state currently does nothing")
-        for ctw in self.query(CountdownTimerWidget):
-            self.log("================================")
-            self.log("================================")
-            self.log(ctw.id)
-            self.log("================================")
-            self.log("================================")
-        # self.log("================================")
-        # self.log("================================")
-        # self.log("================================")
-        # self.log("================================")
-        # # states = [ti.dump_state() for ti in self.query(TextInput)]
-        # # states.append(self.query_one(CountdownTimerWidget).dump_state())
-        # # self.log(states)
-        # self.log("================================")
-        # self.log("================================")
-        # self.log("================================")
-        # self.log("================================")
+    def change_time(self):
+        self.query_one(CountdownTimerWidget).toggle_class("hidden")
+        ti = self.query_one(TimeInput)
+        ti.toggle_class("hidden")
+        if not ti.has_class("hidden"):
+            ti.focus()
+
+    async def on_time_input_new_total_seconds(self, msg: TimeInput.NewTotalSeconds):
+        ctw = self.query_one(CountdownTimerWidget)
+        ctw.ct.initial_seconds = msg.total_seconds
+        await ctw._update()
+        self.change_time()
 
 
 class Pymodoro(App):
     CSS_PATH = "css/pymodoro.css"
 
     BINDINGS = [
-        Binding("d", "dump_state", "dump state"),
-        Binding("j", "move_next", "move to next pomodoro"),
-        Binding("k", "move_prev", "move to next pomodoro"),
+        Binding("d", "dump_state", "dump state", show=False),
+        Binding("escape", "focus_container", "focus outer container", show=False),
+        Binding("j", "move_next", "move next", key_display="j"),
+        Binding("k", "move_prev", "move prev", key_display="k"),
+        Binding("e", "change_time", "change remaining time", key_display="e"),
     ]
 
     def compose(self) -> ComposeResult:
@@ -91,18 +112,21 @@ class Pymodoro(App):
             CountdownTimerContainer(id=f"countdown_timer_container_{next(id_gen)}"),
             id="timers",
         )
+        yield Footer()
 
     def action_dump_state(self):
         print("============")
         print(list(self.query("#timers")))
         for ctc in self.query(CountdownTimerContainer):
             print(ctc)
+            ctc.dump_state()
         print("============")
 
-    def _find_focused_within(
+    def _find_focused_or_focused_within(
         self,
-    ) -> Optional[tuple[int, list[CountdownTimerContainer]]]:
+    ) -> Optional[tuple[Optional[int], list[CountdownTimerContainer]]]:
         """find which CountdownTimerContainer has a widget with focus-within
+        or itself has focus
 
         if exists, return its idx and a list of all CountdownTimerContainers
         else, return None
@@ -111,29 +135,43 @@ class Pymodoro(App):
             return
 
         for i, ctc in enumerate(ctcs):
-            if ctc.has_pseudo_class("focus-within"):
+            if ctc.has_focus or ctc.has_pseudo_class("focus-within"):
                 break
         else:
-            # start at the first one if none found
-            i = 0
+            i = None
 
         return i, ctcs
 
     def _focus_ctc(self, offset: int) -> None:
         """set focus to ctc by offset"""
-        if not (focused := self._find_focused_within()):
+        if not (focused := self._find_focused_or_focused_within()):
             return
         idx, ctcs = focused
+
+        if idx is None:
+            # no focus, so focus on first one
+            ctcs[0].focus()
+            return
+
         ctc = ctcs[(idx + offset) % len(ctcs)]
         ctc.focus()
 
     def action_move_next(self):
-        # self.screen.focus_next()
         self._focus_ctc(1)
 
     def action_move_prev(self):
-        # self.screen.focus_next()
         self._focus_ctc(-1)
+
+    def action_focus_container(self):
+        self._focus_ctc(0)
+
+    def action_change_time(self):
+        if not (focused := self._find_focused_or_focused_within()):
+            return
+
+        idx, ctcs = focused
+        ctc = ctcs[idx or 0]
+        ctc.change_time()
 
 
 if __name__ == "__main__":

@@ -42,7 +42,7 @@ class Period:
 class CountdownTimer:
     """manage the logic of a countdown timer"""
 
-    def __init__(self, initial_seconds=25 * 60):
+    def __init__(self, initial_seconds=25 * 60.0):
         self.initial_seconds = initial_seconds
         self._active = False
         self._elapsed = 0.0
@@ -116,4 +116,8 @@ class CountdownTimerWidget(Static, can_focus=True):
         if self.ct.is_active and not self.ct.remaining:
             await self.stop()
         minutes, seconds = divmod(self.ct.remaining, 60)
-        self.update(f"{minutes:02.0f}:{seconds:05.2f}")
+        hours, minutes = divmod(minutes, 60)
+        hours_str = ""
+        if hours:
+            hours_str = f"{hours:02,.0f}:"
+        self.update(f"{hours_str}{minutes:02.0f}:{seconds:05.2f}")
