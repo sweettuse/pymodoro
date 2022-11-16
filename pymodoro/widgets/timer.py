@@ -31,6 +31,7 @@ class Period:
         self._start = self._end = 0.0
         return monotonic() - start
 
+
     @property
     def elapsed(self) -> float:
         """how many seconds have elapsed in this period"""
@@ -57,11 +58,18 @@ class CountdownTimer:
         return True
 
     def stop(self):
+        """return time elapsed in period"""
         if not self._active:
-            return
+            return 0.0
 
-        self._elapsed += self.period.stop()
+        period_elapsed = self.period.stop()
+        self._elapsed += period_elapsed
         self._active = False
+        return period_elapsed
+
+    def reset(self):
+        self._elapsed = 0.0
+        return self.period.stop()
 
     @property
     def is_active(self) -> bool:
@@ -86,9 +94,13 @@ class CountdownTimerWidget(Static, can_focus=True):
     class Stopped(Message):
         """indicate that app has stopped or paused"""
 
-        def __init__(self, sender: MessageTarget, remaining: float):
-            self.remaining = remaining
+        def __init__(self, sender: MessageTarget, remaining: float, elapsed: float):
             super().__init__(sender)
+            self.remaining = remaining
+            self.elapsed = elapsed
+
+    class Completed(Message):
+        """indicate that pomodoro has completed"""
 
     def __init__(self, countdown_timer: CountdownTimer, *, id=None):
         super().__init__(id=id)
@@ -106,18 +118,27 @@ class CountdownTimerWidget(Static, can_focus=True):
 
     async def stop(self):
         if not self.ct.is_active:
-            return
+            return 0.0
         self._refresh_timer.pause()
-        self.ct.stop()
+        elapsed = self.ct.stop()
         await self._update()
-        await self.emit(self.Stopped(self, self.ct.remaining))
+        await self.emit(self.Stopped(self, self.ct.remaining, elapsed))
+
+    async def reset(self):
+        """reset time to original amount"""
+        self.ct.reset()
+        await self._update()
 
     async def _update(self):
         if self.ct.is_active and not self.ct.remaining:
             await self.stop()
+            await self.emit(self.Completed(self))
+
         minutes, seconds = divmod(self.ct.remaining, 60)
         hours, minutes = divmod(minutes, 60)
+
         hours_str = ""
         if hours:
             hours_str = f"{hours:02,.0f}:"
+
         self.update(f"{hours_str}{minutes:02.0f}:{seconds:05.2f}")

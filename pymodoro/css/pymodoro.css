@@ -1,6 +1,6 @@
 $desc_color: blue;
 $linear_color: purple;
-$timer_width: 16;
+$timer_width: 13;
 $text_padding: 1 0 1 1;
 
 CountdownTimerContainer {
