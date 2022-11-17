@@ -3,3 +3,5 @@ jupyter
 jupyter-client==6.1.12
 rich[jupyter]
 isort
+requests
+keyring
