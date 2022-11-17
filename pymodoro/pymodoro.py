@@ -21,7 +21,7 @@ from textual.widgets import Button, Header, Footer, Static, TextLog, Input
 from textual.containers import Horizontal
 from textual.binding import Binding
 from pymodoro.pymodoro_state import CountdownTimerState, StateStore
-from pymodoro.widgets.text_input import TextInput, TimeInput
+from pymodoro.widgets.text_input import LinearInput, TextInput, TimeInput
 
 from widgets.countdown_timer import CountdownTimer, CountdownTimerWidget
 from uuid import uuid4
@@ -54,7 +54,7 @@ class CountdownTimerContainer(Static, can_focus=True):
 
     def compose_from_state(self, state: CountdownTimerState):
         yield Horizontal(
-            TextInput.from_state(state.linear_state),
+            LinearInput.from_state(state.linear_state),
             TextInput.from_state(state.description_state),
             Button("start", id="start", variant="success"),
             Button("stop", id="stop", variant="error", classes="hidden"),
@@ -76,6 +76,10 @@ class CountdownTimerContainer(Static, can_focus=True):
             self._exit_active()
         elif button_id == "reset":
             await ctw.reset()
+
+    async def on_linear_input_new_title(self, event: LinearInput.NewTitle):
+        desc = self.query_one("#description", TextInput)
+        desc.value = event.title
 
     async def action_quit(self):
         ctw = self.query_one(CountdownTimerWidget)

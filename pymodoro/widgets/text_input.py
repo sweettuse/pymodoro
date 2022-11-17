@@ -4,6 +4,8 @@ from contextlib import suppress
 from typing import Any, Optional
 from textual.widgets import Button, Header, Footer, Static, TextLog, Input
 from textual.message import Message, MessageTarget
+from textual import events
+from pymodoro.linear.api import IssueQuery
 
 from pymodoro.utils import StateManagement, classproperty
 
@@ -21,6 +23,17 @@ class TextInput(Input, StateManagement):
         res = cls(**kw)
         res.add_class(*state["classes"])
         return res
+
+
+class LinearInput(TextInput):
+    class NewTitle(Message):
+        def __init__(self, sender: MessageTarget, title: str):
+            super().__init__(sender)
+            self.title = title
+
+    async def on_key(self, event: events.Key):
+        if event.key == "enter" and (title := IssueQuery(self.value).get()):
+            await self.emit(self.NewTitle(self, title))
 
 
 class TimeInput(TextInput):
