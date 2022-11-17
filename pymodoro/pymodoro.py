@@ -77,6 +77,10 @@ class CountdownTimerContainer(Static, can_focus=True):
         elif button_id == "reset":
             await ctw.reset()
 
+    async def action_quit(self):
+        ctw = self.query_one(CountdownTimerWidget)
+        await ctw.stop()
+
     def _enter_active(self):
         self.query_one("#start").add_class("hidden")
         self.query_one("#reset").add_class("hidden")
@@ -224,6 +228,10 @@ class Pymodoro(App):
         ctc = ctcs[idx or 0]
         button_id = "#stop" if ctc.has_class("active") else "#start"
         ctc.query_one(button_id, Button).press()
+
+    async def action_quit(self):
+        self.action_dump_state()
+        self.exit()
 
     # def action_move_down(self):
     #     self._move_timer(offset=1)
