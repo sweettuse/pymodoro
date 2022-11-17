@@ -1,5 +1,8 @@
+from __future__ import annotations
+
 from dataclasses import dataclass
 from itertools import count
+from pathlib import Path
 import pickle
 import shelve
 from contextlib import suppress
@@ -17,53 +20,27 @@ from textual.message import Message, MessageTarget
 from textual.widgets import Button, Header, Footer, Static, TextLog, Input
 from textual.containers import Horizontal
 from textual.binding import Binding
-from pymodoro.widgets.text_input import TextInput
+from pymodoro.pymodoro_state import CountdownTimerState, StateStore
+from pymodoro.widgets.text_input import TextInput, TimeInput
 
-from widgets.timer import CountdownTimer, CountdownTimerWidget
+from widgets.countdown_timer import CountdownTimer, CountdownTimerWidget
 from uuid import uuid4
 
 id_gen = count()
 
 
-class TimeInput(TextInput):
-    """enter new time for countdown timer"""
-    class NewTotalSeconds(Message):
-        def __init__(self, sender: MessageTarget, new_total_seconds: float):
-            super().__init__(sender)
-            self.total_seconds = new_total_seconds
-
-    async def action_submit(self):
-        if new_seconds := self._to_seconds():
-            await self.emit(self.NewTotalSeconds(self, new_seconds))
-
-    def _to_seconds(self) -> Optional[float]:
-        if self.value.endswith('m'):
-            return 60 * int(self.value[:-1])
-
-        fields = self.value.split(":")
-        if len(fields) > 3:
-            return None
-
-        m = 1
-        res = 0.0
-        with suppress(Exception):
-            for f in reversed(fields):
-                res += m * float(f)
-                m *= 60
-            return res
-
-@dataclass
-class CountdownTimerState:
-    id: Optional[str] = ''
-    total_seconds_completed: float = 0.0
-    num_pomodoros_completed: int = 0
-
-
-    def calc_num_pomodoros(self, current_pomodoro_secs: float):
-        return self.total_seconds_completed // current_pomodoro_secs
-
 class CountdownTimerContainer(Static, can_focus=True):
+    @classmethod
+    def from_state(cls, state: CountdownTimerState) -> CountdownTimerContainer:
+        res = cls(id=state.id)
+        res.state = state
+        return res
+
     def compose(self) -> ComposeResult:
+        if state := getattr(self, "state", None):
+            yield from self.compose_from_state(state)
+            return
+
         self.state = CountdownTimerState(self.id)
         yield Horizontal(
             TextInput(id="linear", placeholder="linear issue id"),
@@ -72,6 +49,19 @@ class CountdownTimerContainer(Static, can_focus=True):
             Button("stop", id="stop", variant="error", classes="hidden"),
             CountdownTimerWidget(CountdownTimer(10)),
             TimeInput(id="time_input", classes="hidden"),
+            Button("reset", id="reset", variant="default"),
+        )
+
+    def compose_from_state(self, state: CountdownTimerState):
+        yield Horizontal(
+            TextInput.from_state(state.linear_state),
+            TextInput.from_state(state.description_state),
+            Button("start", id="start", variant="success"),
+            Button("stop", id="stop", variant="error", classes="hidden"),
+            CountdownTimerWidget(
+                CountdownTimer.from_state(state.countdown_timer_state)
+            ),
+            TimeInput.from_state(state.time_input_state),
             Button("reset", id="reset", variant="default"),
         )
 
@@ -88,17 +78,16 @@ class CountdownTimerContainer(Static, can_focus=True):
             await ctw.reset()
 
     def _enter_active(self):
-        self.query_one("#start").add_class('hidden')
-        self.query_one("#reset").add_class('hidden')
-        self.query_one("#stop").remove_class('hidden')
-        self.add_class('active')
+        self.query_one("#start").add_class("hidden")
+        self.query_one("#reset").add_class("hidden")
+        self.query_one("#stop").remove_class("hidden")
+        self.add_class("active")
 
     def _exit_active(self):
-        self.query_one("#start").remove_class('hidden')
-        self.query_one("#reset").remove_class('hidden')
-        self.query_one("#stop").add_class('hidden')
-        self.remove_class('active')
-
+        self.query_one("#start").remove_class("hidden")
+        self.query_one("#reset").remove_class("hidden")
+        self.query_one("#stop").add_class("hidden")
+        self.remove_class("active")
 
     async def on_countdown_timer_widget_stopped(
         self, event: CountdownTimerWidget.Stopped
@@ -113,13 +102,9 @@ class CountdownTimerContainer(Static, can_focus=True):
         self.log(f"{event.sender} timer completed")
         self.state.num_pomodoros_completed += 1
 
-
     def dump_state(self):
-        ctw = self.query_one(CountdownTimerWidget)
-        print("____________________")
-        print(ctw)
-        print(self.state)
-        print("--------------------")
+        self.state = CountdownTimerState.from_countdown_timer_container(self)
+        return self.state
 
     def enter_edit_time(self):
         self.query_one(CountdownTimerWidget).add_class("hidden")
@@ -152,24 +137,27 @@ class Pymodoro(App):
     ]
 
     def compose(self) -> ComposeResult:
-        yield Container(
-            CountdownTimerContainer(id=f"countdown_timer_container_{next(id_gen)}"),
-            CountdownTimerContainer(id=f"countdown_timer_container_{next(id_gen)}"),
-            CountdownTimerContainer(id=f"countdown_timer_container_{next(id_gen)}"),
-            CountdownTimerContainer(id=f"countdown_timer_container_{next(id_gen)}"),
-            id="timers",
-        )
+        if stored_timers := StateStore.load():
+            timers = map(CountdownTimerContainer.from_state, stored_timers)
+        else:
+            timers = (
+                CountdownTimerContainer(id=f"countdown_timer_container_{uuid4()}"),
+                CountdownTimerContainer(id=f"countdown_timer_container_{uuid4()}"),
+                CountdownTimerContainer(id=f"countdown_timer_container_{uuid4()}"),
+                CountdownTimerContainer(id=f"countdown_timer_container_{uuid4()}"),
+            )
+        yield Container(*timers, id="timers")
         yield Footer()
 
     def action_dump_state(self):
         print("============")
-        timers = self.query_one('#timers')
+        timers = self.query_one("#timers")
         for c in timers.children:
             print(c)
 
         # print(list(self.query("#timers")))
-        for ctc in self.query(CountdownTimerContainer):
-            ctc.dump_state()
+        timers = [ctc.dump_state() for ctc in self.query(CountdownTimerContainer)]
+        StateStore.dump(timers)
         print("============")
 
     def _find_focused_or_focused_within(
@@ -231,23 +219,53 @@ class Pymodoro(App):
     def action_start_or_stop(self):
         if not (focused := self._find_focused_or_focused_within()):
             return
-        
+
         idx, ctcs = focused
         ctc = ctcs[idx or 0]
-        button_id = '#stop' if ctc.has_class('active') else '#start'
-        ctc.query_one(button_id).press()
-        
+        button_id = "#stop" if ctc.has_class("active") else "#start"
+        ctc.query_one(button_id, Button).press()
+
     # def action_move_down(self):
+    #     self._move_timer(offset=1)
+
+    # def action_move_up(self):
+    #     self._move_timer(offset=-1)
+
+    # def _move_timer(self, offset: int):
+    #    """crazy attempt to move timer locations because it is not easy"""
     #     if not (focused := self._find_focused_or_focused_within()):
     #         return
+
+    #     if offset not in {1, -1}:
+    #         return
+
     #     idx, ctcs = focused
     #     idx = idx or 0
-    #     if idx >= len(ctcs) - 1:
+    #     new_idx = idx + offset
+
+    #     if not (0 <= new_idx <= len(ctcs) - 1):
     #         return
-            
+
     #     timers = self.query_one('#timers')
-    #     _n = timers.children._nodes
-    #     _n[idx], _n[idx + 1] = _n[idx + 1], _n[idx]
+    #     starting_rm_idx = min(idx, new_idx)
+    #     ctcs[idx], ctcs[new_idx] = ctcs[new_idx], ctcs[idx]
+    #     new_order = ctcs[starting_rm_idx:]
+    #     print('removing', new_order)
+    #     print("VARS", vars(new_order[0]))
+    #     for ctc in new_order:
+    #         ctc.remove()
+
+    #     for ctc in new_order:
+    #         print('mounting', ctc)
+    #         timers.mount(ctc)
+    #     timers.refresh()
+    #     self.refresh()
+
+    #     t = timers.query(CountdownTimerContainer)
+    #     print("VARS", vars(t[0]))
+    #     t[0].scroll_visible()
+
+    #     print('what have we here', list(t))
 
 
 if __name__ == "__main__":
