@@ -7,7 +7,8 @@ from textual.message import Message, MessageTarget
 from textual import events
 from pymodoro.linear.api import IssueQuery
 
-from pymodoro.utils import StateManagement, classproperty
+from pymodoro.utils import classproperty
+from pymodoro.pymodoro_state import StateManagement
 
 
 class TextInput(Input, StateManagement):
@@ -32,7 +33,17 @@ class LinearInput(TextInput):
             self.title = title
 
     async def on_key(self, event: events.Key):
-        if event.key == "enter" and (title := IssueQuery(self.value).get()):
+
+        if event.key != "enter":
+            return
+        
+        title = None
+        if not self.value:
+            title = ''
+        else:
+            title = IssueQuery(self.value).get()
+
+        if title is not None:
             await self.emit(self.NewTitle(self, title))
 
 

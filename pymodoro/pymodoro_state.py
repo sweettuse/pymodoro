@@ -1,15 +1,31 @@
 from __future__ import annotations
+
+from abc import ABC, abstractmethod
 from dataclasses import dataclass
 from pathlib import Path
 import shelve
-from typing import Optional, TYPE_CHECKING
-
-from pymodoro.widgets.text_input import TextInput
-from pymodoro.widgets.countdown_timer import CountdownTimerWidget
+from typing import Any, Optional, TYPE_CHECKING
+from pymodoro.utils import classproperty
 
 
 if TYPE_CHECKING:
     from .pymodoro import CountdownTimerContainer
+
+
+class StateManagement:
+    @classproperty
+    @abstractmethod
+    def state_attrs(cls) -> tuple[str, ...]:
+        raise NotImplemented
+
+    def dump_state(self) -> dict[str, Any]:
+        return dict(cls=type(self)) | {a: getattr(self, a) for a in self.state_attrs}
+
+    def set_state(self, state_dict: dict[str, Any]) -> None:
+        for a, v in state_dict.items():
+            if a == "cls":
+                continue
+            setattr(self, a, v)
 
 
 class StateStore:
@@ -44,6 +60,9 @@ class CountdownTimerState:
     def from_countdown_timer_container(
         cls, ctc: CountdownTimerContainer
     ) -> CountdownTimerState:
+        from pymodoro.widgets.text_input import TextInput
+        from pymodoro.widgets.countdown_timer import CountdownTimerWidget
+
         return cls(
             ctc.id,
             ctc.state.total_seconds_completed,

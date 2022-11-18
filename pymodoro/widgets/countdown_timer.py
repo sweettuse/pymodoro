@@ -16,7 +16,8 @@ from rich.segment import Segment
 from textual.reactive import reactive
 from textual.widgets import Button, Header, Footer, Static
 
-from pymodoro.utils import StateManagement, classproperty
+from pymodoro.utils import classproperty
+from pymodoro.pymodoro_state import StateManagement
 
 
 class Period:
