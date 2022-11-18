@@ -107,8 +107,11 @@ class CountdownTimerWidget(Static, can_focus=True):
 
     CSS_PATH = "css/timer.css"
 
+    class Started(Message):
+        """indicate that widget has started"""
+
     class Stopped(Message):
-        """indicate that app has stopped or paused"""
+        """indicate that widget has stopped or paused"""
 
         def __init__(self, sender: MessageTarget, remaining: float, elapsed: float):
             super().__init__(sender)
@@ -128,9 +131,9 @@ class CountdownTimerWidget(Static, can_focus=True):
 
     async def start(self):
         if not self.ct.start():
-            return False
+            return
         self._refresh_timer.resume()
-        return True
+        await self.emit(self.Started(self))
 
     async def stop(self):
         if not self.ct.is_active:

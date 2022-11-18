@@ -36,10 +36,10 @@ class LinearInput(TextInput):
 
         if event.key != "enter":
             return
-        
+
         title = None
         if not self.value:
-            title = ''
+            title = ""
         else:
             title = IssueQuery(self.value).get()
 

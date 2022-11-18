@@ -1,11 +1,7 @@
 from __future__ import annotations
+import asyncio
+from functools import partial
 
-from dataclasses import dataclass
-from itertools import count
-from pathlib import Path
-import pickle
-import shelve
-from contextlib import suppress
 from typing import Any, Optional
 from textual.app import App, ComposeResult
 
@@ -25,8 +21,6 @@ from pymodoro.widgets.text_input import LinearInput, TextInput, TimeInput
 
 from widgets.countdown_timer import CountdownTimer, CountdownTimerWidget
 from uuid import uuid4
-
-id_gen = count()
 
 
 class CountdownTimerContainer(Static, can_focus=True):
@@ -69,11 +63,9 @@ class CountdownTimerContainer(Static, can_focus=True):
         button_id = event.button.id
         ctw = self.query_one(CountdownTimerWidget)
         if button_id == "start":
-            if await ctw.start():
-                self._enter_active()
+            await ctw.start()
         elif button_id == "stop":
             await ctw.stop()
-            self._exit_active()
         elif button_id == "reset":
             await ctw.reset()
 
@@ -109,6 +101,12 @@ class CountdownTimerContainer(Static, can_focus=True):
     ):
         self.log(f"{event.sender} timer completed")
         self.state.num_pomodoros_completed += 1
+        self._exit_active()
+
+    async def on_countdown_timer_widget_started(
+        self, event: CountdownTimerWidget.Started
+    ):
+        self._enter_active()
 
     def dump_state(self):
         self.state = CountdownTimerState.from_countdown_timer_container(self)
@@ -131,17 +129,21 @@ class CountdownTimerContainer(Static, can_focus=True):
         self.exit_edit_time()
 
 
+HiddenBinding = partial(Binding, show=False)
+
+
 class Pymodoro(App):
     CSS_PATH = "css/pymodoro.css"
 
     BINDINGS = [
-        Binding("d", "dump_state", "dump state", show=False),
-        Binding("escape", "focus_container", "focus outer container", show=False),
-        Binding("j", "move_next", "move next", key_display="j"),
-        Binding("k", "move_prev", "move prev", key_display="k"),
+        Binding("j", "move_next", "focus/move next", key_display="j/J"),
+        Binding("k", "move_prev", "focus/move prev", key_display="k/K"),
         Binding("e", "edit_time", "edit total time", key_display="e"),
-        # Binding("J", "move_down", "move widget down", key_display="J"),
         Binding("space", "start_or_stop", "start or stop", key_display="space"),
+        HiddenBinding("d", "dump_state", "dump state"),
+        HiddenBinding("J", "move_down", "move widget down", key_display="J"),
+        HiddenBinding("K", "move_up", "move widget up", key_display="K"),
+        HiddenBinding("escape", "focus_container", "focus outer container"),
     ]
 
     def compose(self) -> ComposeResult:
@@ -157,6 +159,9 @@ class Pymodoro(App):
         yield Container(*timers, id="timers")
         yield Footer()
 
+    # ==========================================================================
+    # actions
+    # ==========================================================================
     def action_dump_state(self):
         print("============")
         timers = self.query_one("#timers")
@@ -167,6 +172,66 @@ class Pymodoro(App):
         timers = [ctc.dump_state() for ctc in self.query(CountdownTimerContainer)]
         StateStore.dump(timers)
         print("============")
+
+    def action_move_next(self):
+        self._focus_ctc(1)
+
+    def action_move_prev(self):
+        self._focus_ctc(-1)
+
+    def action_focus_container(self):
+        if ctc := self._focus_ctc(0):
+            ctc.exit_edit_time()
+
+    def action_edit_time(self):
+        if not (focused := self._find_focused_or_focused_within()):
+            return
+
+        idx, ctcs = focused
+        ctc = ctcs[idx or 0]
+        ctc.enter_edit_time()
+
+    def action_start_or_stop(self):
+        if not (focused := self._find_focused_or_focused_within()):
+            return
+
+        idx, ctcs = focused
+        ctc = ctcs[idx or 0]
+        if ctc.has_class("active"):
+            button_id = "#stop"
+        else:
+            if self.has_class("timer_active"):
+                # can't start 2 timers simultaneously
+                return
+            button_id = "#start"
+        ctc.query_one(button_id, Button).press()
+
+    def action_quit(self):
+        self.action_dump_state()
+        self.exit()
+
+    def action_move_down(self):
+        self._move_timer(offset=1)
+
+    def action_move_up(self):
+        self._move_timer(offset=-1)
+
+    # ==========================================================================
+    # events
+    # ==========================================================================
+
+    def on_time_input_new_total_seconds(self):
+        self._focus_ctc(0)
+
+    async def on_countdown_timer_widget_started(self):
+        self.add_class("timer_active")
+
+    async def on_countdown_timer_widget_stopped(self):
+        self.remove_class("timer_active")
+
+    # ==========================================================================
+    # helpers
+    # ==========================================================================
 
     def _find_focused_or_focused_within(
         self,
@@ -189,7 +254,7 @@ class Pymodoro(App):
         return i, ctcs
 
     def _focus_ctc(self, offset: int) -> Optional[CountdownTimerContainer]:
-        """set focus to ctc by offset"""
+        """set focus to ctc by offset from current focus"""
         if not (focused := self._find_focused_or_focused_within()):
             return
         idx, ctcs = focused
@@ -203,81 +268,30 @@ class Pymodoro(App):
         ctc.focus()
         return ctc
 
-    def action_move_next(self):
-        self._focus_ctc(1)
+    def _move_timer(self, offset: int):
+        """move timer container up or down in the list"""
+        if offset not in {1, -1}:
+            return
 
-    def action_move_prev(self):
-        self._focus_ctc(-1)
-
-    def action_focus_container(self):
-        if ctc := self._focus_ctc(0):
-            ctc.exit_edit_time()
-
-    def on_time_input_new_total_seconds(self, _):
-        self._focus_ctc(0)
-
-    def action_edit_time(self):
         if not (focused := self._find_focused_or_focused_within()):
             return
 
         idx, ctcs = focused
-        ctc = ctcs[idx or 0]
-        ctc.enter_edit_time()
-
-    def action_start_or_stop(self):
-        if not (focused := self._find_focused_or_focused_within()):
+        if idx is None:
             return
 
-        idx, ctcs = focused
-        ctc = ctcs[idx or 0]
-        button_id = "#stop" if ctc.has_class("active") else "#start"
-        ctc.query_one(button_id, Button).press()
+        new_idx = idx + offset
+        if not (0 <= new_idx <= len(ctcs) - 1):
+            return
 
-    async def action_quit(self):
-        self.action_dump_state()
-        self.exit()
-
-    # def action_move_down(self):
-    #     self._move_timer(offset=1)
-
-    # def action_move_up(self):
-    #     self._move_timer(offset=-1)
-
-    # def _move_timer(self, offset: int):
-    #    """crazy attempt to move timer locations because it is not easy"""
-    #     if not (focused := self._find_focused_or_focused_within()):
-    #         return
-
-    #     if offset not in {1, -1}:
-    #         return
-
-    #     idx, ctcs = focused
-    #     idx = idx or 0
-    #     new_idx = idx + offset
-
-    #     if not (0 <= new_idx <= len(ctcs) - 1):
-    #         return
-
-    #     timers = self.query_one('#timers')
-    #     starting_rm_idx = min(idx, new_idx)
-    #     ctcs[idx], ctcs[new_idx] = ctcs[new_idx], ctcs[idx]
-    #     new_order = ctcs[starting_rm_idx:]
-    #     print('removing', new_order)
-    #     print("VARS", vars(new_order[0]))
-    #     for ctc in new_order:
-    #         ctc.remove()
-
-    #     for ctc in new_order:
-    #         print('mounting', ctc)
-    #         timers.mount(ctc)
-    #     timers.refresh()
-    #     self.refresh()
-
-    #     t = timers.query(CountdownTimerContainer)
-    #     print("VARS", vars(t[0]))
-    #     t[0].scroll_visible()
-
-    #     print('what have we here', list(t))
+        timers = self.query_one("#timers")
+        ctc = ctcs[idx]
+        state = ctc.dump_state()
+        kw = {"before" if offset == -1 else "after": ctcs[new_idx]}
+        new_ctc = CountdownTimerContainer.from_state(state)
+        ctc.remove()
+        timers.mount(new_ctc, **kw)
+        new_ctc.focus()
 
 
 if __name__ == "__main__":
