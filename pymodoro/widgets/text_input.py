@@ -5,24 +5,25 @@ from typing import Any, Optional
 from textual.widgets import Button, Header, Footer, Static, TextLog, Input
 from textual.message import Message, MessageTarget
 from textual import events
-from pymodoro.linear.api import IssueQuery
-
-from pymodoro.utils import classproperty
-from pymodoro.pymodoro_state import StateManagement
+from linear.api import IssueQuery
 
 
-class TextInput(Input, StateManagement):
+class TextInput(Input):
     """text input with some state management help"""
 
-    @classproperty
-    def state_attrs(cls):
-        return "id", "value", "placeholder", "classes"
+    state_attrs: tuple[str, ...] = "id", "value", "placeholder"
+
+    def dump_state(self) -> dict:
+        return dict(classes=list(self.classes)) | {
+            k: getattr(self, k) for k in self.state_attrs
+        }
 
     @classmethod
     def from_state(cls, state: dict[str, Any]):
-        kw = {k: state[k] for k in set(cls.state_attrs) - {"classes"}}
+        classes = state.pop('classes')
+        kw = {k: state[k] for k in cls.state_attrs}
         res = cls(**kw)
-        res.add_class(*state["classes"])
+        res.add_class(*classes)
         return res
 
 

@@ -2,7 +2,7 @@ from contextlib import suppress
 from datetime import datetime
 from time import perf_counter
 from textual.app import App, ComposeResult
-from pymodoro.widgets.text_input_orig import TextInputOrig
+from widgets.text_input_orig import TextInputOrig
 
 from textual.containers import Container
 from textual import events

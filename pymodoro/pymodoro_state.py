@@ -1,45 +1,31 @@
 from __future__ import annotations
 
-from abc import ABC, abstractmethod
-from dataclasses import dataclass
+from contextlib import suppress
+from dataclasses import asdict, dataclass
+import json
 from pathlib import Path
-import shelve
-from typing import Any, Optional, TYPE_CHECKING
-from pymodoro.utils import classproperty
+from typing import Optional, TYPE_CHECKING
 
 
 if TYPE_CHECKING:
-    from .pymodoro import CountdownTimerContainer
-
-
-class StateManagement:
-    @classproperty
-    @abstractmethod
-    def state_attrs(cls) -> tuple[str, ...]:
-        raise NotImplemented
-
-    def dump_state(self) -> dict[str, Any]:
-        return dict(cls=type(self)) | {a: getattr(self, a) for a in self.state_attrs}
-
-    def set_state(self, state_dict: dict[str, Any]) -> None:
-        for a, v in state_dict.items():
-            if a == "cls":
-                continue
-            setattr(self, a, v)
+    from widgets.countdown_timer import CountdownTimerContainer
 
 
 class StateStore:
-    store = Path("~/.pymodoro").expanduser()
+    store = str(Path("~/.pymodoro").expanduser())
 
     @classmethod
-    def load(cls):
-        with shelve.open(str(cls.store)) as s:
-            return s.get("timers")
+    def load(cls) -> Optional[list[CountdownTimerState]]:
+        with suppress(Exception):
+            with open(cls.store, "r") as f:
+                res = json.load(f)
+            return [CountdownTimerState(**v) for v in res]
 
     @classmethod
-    def dump(cls, timers):
-        with shelve.open(str(cls.store)) as s:
-            s["timers"] = timers
+    def dump(cls, states: list[CountdownTimerState]):
+        dicts = [asdict(s) for s in states]
+        with open(cls.store, "w") as f:
+            json.dump(dicts, f)
 
 
 @dataclass
@@ -54,14 +40,15 @@ class CountdownTimerState:
     time_input_state: Optional[dict] = None
 
     def calc_num_pomodoros(self, current_pomodoro_secs: float) -> int:
+        """number of pomodoros that would've been completed based on the current length"""
         return int(self.total_seconds_completed / current_pomodoro_secs)
 
     @classmethod
     def from_countdown_timer_container(
         cls, ctc: CountdownTimerContainer
     ) -> CountdownTimerState:
-        from pymodoro.widgets.text_input import TextInput
-        from pymodoro.widgets.countdown_timer import CountdownTimerWidget
+        from widgets.text_input import TextInput
+        from widgets.countdown_timer import CountdownTimerWidget
 
         return cls(
             ctc.id,
