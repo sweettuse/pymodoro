@@ -17,6 +17,7 @@ from textual.message import Message, MessageTarget
 from textual.widgets import Button, Header, Footer, Static, TextLog, Input
 from textual.containers import Horizontal
 from textual.binding import Binding
+from widgets.configuration import ConfigForm
 from widgets.countdown_timer import CountdownTimerContainer
 from pymodoro_state import StateStore
 
@@ -30,8 +31,8 @@ class Pymodoro(App):
     CSS_PATH = "css/pymodoro.css"
 
     BINDINGS = [
-        Binding("j", "move_next", "focus/move next", key_display="j/J"),
-        Binding("k", "move_prev", "focus/move prev", key_display="k/K"),
+        Binding("j", "focus_next", "focus/move next", key_display="j/J"),
+        Binding("k", "focus_prev", "focus/move prev", key_display="k/K"),
         Binding("e", "edit_time", "edit total time", key_display="e"),
         Binding("space", "start_or_stop", "start or stop", key_display="space"),
         HiddenBinding("d", "dump_state", "dump state"),
@@ -41,6 +42,7 @@ class Pymodoro(App):
     ]
 
     def compose(self) -> ComposeResult:
+        self.has_active_timer = False
         if stored_timers := StateStore.load():
             timers = map(CountdownTimerContainer.from_state, stored_timers)
         else:
@@ -50,6 +52,8 @@ class Pymodoro(App):
                 CountdownTimerContainer(id=f"countdown_timer_container_{uuid4()}"),
                 CountdownTimerContainer(id=f"countdown_timer_container_{uuid4()}"),
             )
+        yield Header(name="pymodoro")
+        yield ConfigForm(classes='hidden')
         yield Container(*timers, id="timers")
         yield Footer()
 
@@ -67,10 +71,12 @@ class Pymodoro(App):
         StateStore.dump(timers)
         print("============")
 
-    def action_move_next(self):
+    def action_focus_next(self):
+        """set focus to next timer"""
         self._focus_ctc(1)
 
-    def action_move_prev(self):
+    def action_focus_prev(self):
+        """set focus to previous timer"""
         self._focus_ctc(-1)
 
     def action_focus_container(self):
@@ -94,8 +100,8 @@ class Pymodoro(App):
         if ctc.has_class("active"):
             button_id = "#stop"
         else:
-            if self.has_class("timer_active"):
-                # can't start 2 timers simultaneously
+            if self.has_active_timer:
+                # can't have 2 timers running concurrently
                 return
             button_id = "#start"
         ctc.query_one(button_id, Button).press()
@@ -105,9 +111,11 @@ class Pymodoro(App):
         self.exit()
 
     def action_move_down(self):
+        """move timer down one"""
         self._move_timer(offset=1)
 
     def action_move_up(self):
+        """move timer up one"""
         self._move_timer(offset=-1)
 
     # ==========================================================================
@@ -118,10 +126,10 @@ class Pymodoro(App):
         self._focus_ctc(0)
 
     async def on_countdown_timer_widget_started(self):
-        self.add_class("timer_active")
+        self.has_active_timer = True
 
     async def on_countdown_timer_widget_stopped(self):
-        self.remove_class("timer_active")
+        self.has_active_timer = False
 
     # ==========================================================================
     # helpers

@@ -30,7 +30,22 @@ CountdownTimerContainer.active {
     background: palevioletred;
 }
 CountdownTimerContainer:focus {
-    background: yellowgreen;
+    background: green;
+}
+
+ConfigForm {
+
+}
+
+ConfigFields {
+    background: $panel;
+    layer: sidebar;
+    dock: right;
+    width: 50%;
+    layout: grid;
+    grid-size: 2;
+    grid-columns: 20 1fr;
+    padding: 1;
 }
 
 Button {

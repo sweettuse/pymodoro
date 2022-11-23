@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import asyncio
+from enum import Enum
 from functools import partial
 
 from typing import Any, Optional
@@ -22,6 +23,7 @@ from widgets.text_input import LinearInput, TextInput, TimeInput
 
 from widgets.countdown_timer import CountdownTimer, CountdownTimerWidget
 from uuid import uuid4
+
 
 class CountdownTimerContainer(Static, can_focus=True):
     @classmethod
@@ -69,45 +71,49 @@ class CountdownTimerContainer(Static, can_focus=True):
         elif button_id == "reset":
             await ctw.reset()
 
-    async def on_linear_input_new_title(self, event: LinearInput.NewTitle):
-        desc = self.query_one("#description", TextInput)
-        desc.value = event.title
-
+    # ==========================================================================
+    # actions
+    # ==========================================================================
     async def action_quit(self):
         ctw = self.query_one(CountdownTimerWidget)
         await ctw.stop()
 
-    def _enter_active(self):
-        self.query_one("#start").add_class("hidden")
-        self.query_one("#reset").add_class("hidden")
-        self.query_one("#stop").remove_class("hidden")
-        self.add_class("active")
+    # ==========================================================================
+    # events
+    # ==========================================================================
+    async def on_linear_input_new_title(self, event: LinearInput.NewTitle):
+        """we received a new title from linear, so update the description with it"""
+        desc = self.query_one("#description", TextInput)
+        desc.value = event.title
 
-    def _exit_active(self):
-        self.query_one("#start").remove_class("hidden")
-        self.query_one("#reset").remove_class("hidden")
-        self.query_one("#stop").add_class("hidden")
-        self.remove_class("active")
+    async def on_countdown_timer_widget_started(
+        self, event: CountdownTimerWidget.Started
+    ):
+        self._set_active(active=True)
 
     async def on_countdown_timer_widget_stopped(
         self, event: CountdownTimerWidget.Stopped
     ):
         self.log(f"{event.sender} timer stopped")
         self.state.total_seconds_completed += event.elapsed
-        self._exit_active()
+        self._set_active(active=False)
 
     async def on_countdown_timer_widget_completed(
         self, event: CountdownTimerWidget.Completed
     ):
         self.log(f"{event.sender} timer completed")
         self.state.num_pomodoros_completed += 1
-        self._exit_active()
+        self._set_active(active=False)
 
-    async def on_countdown_timer_widget_started(
-        self, event: CountdownTimerWidget.Started
-    ):
-        self._enter_active()
+    async def on_time_input_new_total_seconds(self, msg: TimeInput.NewTotalSeconds):
+        ctw = self.query_one(CountdownTimerWidget)
+        ctw.ct.initial_seconds = msg.total_seconds
+        await ctw._update()
+        self.exit_edit_time()
 
+    # ==========================================================================
+    # helpers
+    # ==========================================================================
     def dump_state(self):
         self.state = CountdownTimerState.from_countdown_timer_container(self)
         return self.state
@@ -122,9 +128,8 @@ class CountdownTimerContainer(Static, can_focus=True):
         (ti := self.query_one(TimeInput)).add_class("hidden")
         ti.value = ""
 
-    async def on_time_input_new_total_seconds(self, msg: TimeInput.NewTotalSeconds):
-        ctw = self.query_one(CountdownTimerWidget)
-        ctw.ct.initial_seconds = msg.total_seconds
-        await ctw._update()
-        self.exit_edit_time()
-
+    def _set_active(self, *, active: bool):
+        self.query_one("#start").set_class(active, "hidden")
+        self.query_one("#reset").set_class(active, "hidden")
+        self.query_one("#stop").set_class(not active, "hidden")
+        self.set_class(active, "active")

@@ -2,9 +2,10 @@ from __future__ import annotations
 
 from contextlib import suppress
 from dataclasses import asdict, dataclass
+from enum import Enum
 import json
 from pathlib import Path
-from typing import Optional, TYPE_CHECKING
+from typing import Literal, Optional, TYPE_CHECKING, TypeAlias
 
 
 if TYPE_CHECKING:
@@ -25,12 +26,16 @@ class StateStore:
     def dump(cls, states: list[CountdownTimerState]):
         dicts = [asdict(s) for s in states]
         with open(cls.store, "w") as f:
-            json.dump(dicts, f)
+            json.dump(dicts, f, indent=2)
+
+
+Stage: TypeAlias = Literal["todo", "in_progress", "done", "canceled"]
 
 
 @dataclass
 class CountdownTimerState:
     id: Optional[str] = ""
+    stage: Stage = "in_progress"
     total_seconds_completed: float = 0.0
     num_pomodoros_completed: int = 0
 
@@ -52,6 +57,7 @@ class CountdownTimerState:
 
         return cls(
             ctc.id,
+            ctc.state.stage,
             ctc.state.total_seconds_completed,
             ctc.state.num_pomodoros_completed,
             linear_state=ctc.query_one("#linear", TextInput).dump_state(),
