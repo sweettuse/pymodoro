@@ -91,7 +91,7 @@ class CountdownTimer:
 
     @property
     def total_elapsed(self) -> float:
-        """how much time has elapsed"""
+        """how much time has elapsed in seconds"""
         return self._elapsed + self.period.elapsed
 
     @total_elapsed.setter

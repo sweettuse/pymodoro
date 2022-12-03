@@ -7,7 +7,7 @@ Screen {
     layers: base sidebar config;
 }
 
-CountdownTimerContainer {
+CountdownTimerComponent {
     layout: horizontal;
     background: $boost;
     height: 7;
@@ -26,10 +26,10 @@ CountdownTimerWidget {
     content-align: center middle;
 }
 
-CountdownTimerContainer.active {
+CountdownTimerComponent.active {
     background: palevioletred;
 }
-CountdownTimerContainer:focus {
+CountdownTimerComponent:focus {
     background: green;
 }
 

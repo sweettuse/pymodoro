@@ -9,7 +9,17 @@ from typing import Literal, Optional, TYPE_CHECKING, TypeAlias
 
 
 if TYPE_CHECKING:
-    from widgets.countdown_timer import CountdownTimerContainer
+    from widgets.countdown_timer import CountdownTimerComponent
+
+
+class EventStore:
+    store = str(Path("~/.pymodoro.events").expanduser())
+
+    @classmethod
+    def register(cls, d: dict):
+        msg = json.dumps(d)
+        with open(cls.store, "a") as f:
+            f.write(msg + "\n")
 
 
 class StateStore:
@@ -50,7 +60,7 @@ class CountdownTimerState:
 
     @classmethod
     def from_countdown_timer_container(
-        cls, ctc: CountdownTimerContainer
+        cls, ctc: CountdownTimerComponent
     ) -> CountdownTimerState:
         from widgets.text_input import TextInput
         from widgets.countdown_timer import CountdownTimerWidget

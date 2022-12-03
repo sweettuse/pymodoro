@@ -18,7 +18,7 @@ from textual.widgets import Button, Header, Footer, Static, TextLog, Input
 from textual.containers import Horizontal
 from textual.binding import Binding
 from widgets.configuration import ConfigForm
-from widgets.countdown_timer import CountdownTimerContainer
+from widgets.countdown_timer import CountdownTimerComponent, CountdownTimerWidget
 from pymodoro_state import StateStore
 
 from uuid import uuid4
@@ -44,16 +44,16 @@ class Pymodoro(App):
     def compose(self) -> ComposeResult:
         self.has_active_timer = False
         if stored_timers := StateStore.load():
-            timers = map(CountdownTimerContainer.from_state, stored_timers)
+            timers = map(CountdownTimerComponent.from_state, stored_timers)
         else:
             timers = (
-                CountdownTimerContainer(id=f"countdown_timer_container_{uuid4()}"),
-                CountdownTimerContainer(id=f"countdown_timer_container_{uuid4()}"),
-                CountdownTimerContainer(id=f"countdown_timer_container_{uuid4()}"),
-                CountdownTimerContainer(id=f"countdown_timer_container_{uuid4()}"),
+                CountdownTimerComponent(id=f"countdown_timer_container_{uuid4()}"),
+                CountdownTimerComponent(id=f"countdown_timer_container_{uuid4()}"),
+                CountdownTimerComponent(id=f"countdown_timer_container_{uuid4()}"),
+                CountdownTimerComponent(id=f"countdown_timer_container_{uuid4()}"),
             )
         yield Header(name="pymodoro")
-        yield ConfigForm(classes='hidden')
+        yield ConfigForm(classes="hidden")
         yield Container(*timers, id="timers")
         yield Footer()
 
@@ -67,7 +67,7 @@ class Pymodoro(App):
             print(c)
 
         # print(list(self.query("#timers")))
-        timers = [ctc.dump_state() for ctc in self.query(CountdownTimerContainer)]
+        timers = [ctc.dump_state() for ctc in self.query(CountdownTimerComponent)]
         StateStore.dump(timers)
         print("============")
 
@@ -119,17 +119,24 @@ class Pymodoro(App):
         self._move_timer(offset=-1)
 
     # ==========================================================================
-    # events
+    # event handlers
     # ==========================================================================
 
     def on_time_input_new_total_seconds(self):
         self._focus_ctc(0)
 
-    async def on_countdown_timer_widget_started(self):
+    async def on_countdown_timer_widget_started(
+        self, event: CountdownTimerWidget.Started
+    ):
         self.has_active_timer = True
 
     async def on_countdown_timer_widget_stopped(self):
         self.has_active_timer = False
+
+    async def on_countdown_timer_widget_completed(
+        self, event: CountdownTimerWidget.Completed
+    ):
+        self.bell()
 
     # ==========================================================================
     # helpers
@@ -137,14 +144,14 @@ class Pymodoro(App):
 
     def _find_focused_or_focused_within(
         self,
-    ) -> Optional[tuple[Optional[int], list[CountdownTimerContainer]]]:
-        """find which CountdownTimerContainer has a widget with focus-within
+    ) -> Optional[tuple[Optional[int], list[CountdownTimerComponent]]]:
+        """find which CountdownTimerComponent has a widget with focus-within
         or itself has focus
 
-        if exists, return its idx and a list of all CountdownTimerContainers
+        if exists, return its idx and a list of all CountdownTimerComponents
         else, return None
         """
-        if not (ctcs := list(self.query(CountdownTimerContainer))):
+        if not (ctcs := list(self.query(CountdownTimerComponent))):
             return
 
         for i, ctc in enumerate(ctcs):
@@ -155,12 +162,12 @@ class Pymodoro(App):
 
         return i, ctcs
 
-    def _focus_ctc(self, offset: int) -> Optional[CountdownTimerContainer]:
+    def _focus_ctc(self, offset: int) -> Optional[CountdownTimerComponent]:
         """set focus to ctc by offset from current focus"""
         if not (focused := self._find_focused_or_focused_within()):
             return
-        idx, ctcs = focused
 
+        idx, ctcs = focused
         if idx is None:
             # no focus, so focus on first one
             ctcs[0].focus()
@@ -188,7 +195,7 @@ class Pymodoro(App):
 
         ctc = ctcs[idx]
         state = ctc.dump_state()
-        new_ctc = CountdownTimerContainer.from_state(state)
+        new_ctc = CountdownTimerComponent.from_state(state)
         kw = {"before" if offset == -1 else "after": ctcs[new_idx]}
         ctc.remove()
         self.query_one("#timers").mount(new_ctc, **kw)

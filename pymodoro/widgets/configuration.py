@@ -43,7 +43,5 @@ class ConfigTitle(Static):
 
 class ConfigForm(Static):
     def compose(self) -> ComposeResult:
-        yield ConfigTitle('configuration')
+        yield ConfigTitle("configuration")
         yield ConfigFields()
-
-

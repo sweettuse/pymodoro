@@ -22,12 +22,11 @@ from pymodoro_state import CountdownTimerState, StateStore
 from widgets.text_input import LinearInput, TextInput, TimeInput
 
 from widgets.countdown_timer import CountdownTimer, CountdownTimerWidget
-from uuid import uuid4
 
 
-class CountdownTimerContainer(Static, can_focus=True):
+class CountdownTimerComponent(Static, can_focus=True):
     @classmethod
-    def from_state(cls, state: CountdownTimerState) -> CountdownTimerContainer:
+    def from_state(cls, state: CountdownTimerState) -> CountdownTimerComponent:
         res = cls(id=state.id)
         res.state = state
         return res
@@ -79,7 +78,7 @@ class CountdownTimerContainer(Static, can_focus=True):
         await ctw.stop()
 
     # ==========================================================================
-    # events
+    # event handlers
     # ==========================================================================
     async def on_linear_input_new_title(self, event: LinearInput.NewTitle):
         """we received a new title from linear, so update the description with it"""

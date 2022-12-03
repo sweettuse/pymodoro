@@ -5,4 +5,4 @@ rich[jupyter]
 isort
 requests
 keyring
-playsound
+pendulum

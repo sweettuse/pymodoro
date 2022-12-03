@@ -1,9 +1,11 @@
 from __future__ import annotations
+from abc import ABC, abstractmethod
 import asyncio
 
 from time import monotonic, sleep
 from contextlib import suppress
 from typing import Any
+import pendulum
 from textual.app import App, ComposeResult
 
 from textual.message import Message, MessageTarget
@@ -15,8 +17,36 @@ from rich.style import Style
 from rich.segment import Segment
 from textual.reactive import reactive
 from textual.widgets import Button, Header, Footer, Static
+from pymodoro_state import EventStore
 
 from widgets.countdown_timer import CountdownTimer
+
+
+class _CountdownTimerMessage(Message):
+    def __init__(self, sender: MessageTarget) -> None:
+        super().__init__(sender)
+        self.at = pendulum.now()
+        EventStore.register(self.event_data)
+
+    @property
+    def event_data(self) -> dict[str, str]:
+        """as this should be stored in the EventStore"""
+        return dict(
+            component_id=self.component_id,
+            name=self.name,
+            at=str(self.at),
+        )
+
+    @property
+    def component_id(self) -> str:
+        from widgets.countdown_timer.container import CountdownTimerComponent
+
+        component = next(
+            a for a in self.sender.ancestors if isinstance(a, CountdownTimerComponent)
+        )
+        if component:
+            return component.id
+        return "unknown"
 
 
 class CountdownTimerWidget(Static, can_focus=True):
@@ -24,23 +54,39 @@ class CountdownTimerWidget(Static, can_focus=True):
 
     CSS_PATH = "css/timer.css"
 
-    class Started(Message):
-        """indicate that widget has started"""
-
-    class Stopped(Message):
-        """indicate that widget has stopped or paused"""
-
-        def __init__(self, sender: MessageTarget, remaining: float, elapsed: float):
-            super().__init__(sender)
-            self.remaining = remaining
-            self.elapsed = elapsed
-
-    class Completed(Message):
-        """indicate that pomodoro has completed"""
-
     def __init__(self, countdown_timer: CountdownTimer, *, id=None):
         super().__init__(id=id)
         self.ct = countdown_timer
+
+    # ==========================================================================
+    # messages
+    # ==========================================================================
+
+    class Started(_CountdownTimerMessage):
+        """indicate that widget has started"""
+
+    class Stopped(_CountdownTimerMessage):
+        """indicate that widget has stopped or paused"""
+
+        def __init__(self, sender: MessageTarget, remaining: float, elapsed: float):
+            self.remaining = remaining
+            self.elapsed = elapsed
+            super().__init__(sender)
+
+        @property
+        def event_data(self) -> dict[str, str]:
+            """as this should be stored in the EventStore"""
+            return super().event_data | dict(
+                remaining=str(self.remaining),
+                elapsed=str(self.elapsed),
+            )
+
+    class Completed(_CountdownTimerMessage):
+        """indicate that pomodoro has completed"""
+
+    # ==========================================================================
+    # methods
+    # ==========================================================================
 
     async def on_mount(self):
         self._refresh_timer = self.set_interval(1 / 60, self._update, pause=True)
