@@ -17,6 +17,7 @@ from textual.message import Message, MessageTarget
 from textual.widgets import Button, Header, Footer, Static, TextLog, Input
 from textual.containers import Horizontal
 from textual.binding import Binding
+from hello_world.current_timer import CurTimerComponent
 from widgets.configuration import ConfigForm
 from widgets.countdown_timer import CountdownTimerComponent, CountdownTimerWidget
 from pymodoro_state import StateStore
@@ -28,6 +29,7 @@ HiddenBinding = partial(Binding, show=False)
 
 
 class Pymodoro(App):
+    """main pymodoro application"""
     CSS_PATH = "css/pymodoro.css"
 
     BINDINGS = [
@@ -36,8 +38,8 @@ class Pymodoro(App):
         Binding("e", "edit_time", "edit total time", key_display="e"),
         Binding("space", "start_or_stop", "start or stop", key_display="space"),
         HiddenBinding("d", "dump_state", "dump state"),
-        HiddenBinding("J", "move_down", "move widget down", key_display="J"),
-        HiddenBinding("K", "move_up", "move widget up", key_display="K"),
+        HiddenBinding("J", "move_down", "move widget down"),
+        HiddenBinding("K", "move_up", "move widget up"),
         HiddenBinding("escape", "focus_container", "focus outer container"),
     ]
 
@@ -52,7 +54,8 @@ class Pymodoro(App):
                 CountdownTimerComponent(id=f"countdown_timer_container_{uuid4()}"),
                 CountdownTimerComponent(id=f"countdown_timer_container_{uuid4()}"),
             )
-        yield Header(name="pymodoro")
+        yield Header()
+        yield CurTimerComponent()
         yield ConfigForm(classes="hidden")
         yield Container(*timers, id="timers")
         yield Footer()
@@ -141,6 +144,7 @@ class Pymodoro(App):
     # ==========================================================================
     # helpers
     # ==========================================================================
+
 
     def _find_focused_or_focused_within(
         self,

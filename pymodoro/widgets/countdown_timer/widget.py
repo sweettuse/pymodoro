@@ -23,6 +23,7 @@ from widgets.countdown_timer import CountdownTimer
 
 
 class _CountdownTimerMessage(Message):
+    """base class to log all changes to the EventStore"""
     def __init__(self, sender: MessageTarget) -> None:
         super().__init__(sender)
         self.at = pendulum.now()
@@ -83,7 +84,7 @@ class CountdownTimerWidget(Static, can_focus=True):
 
     class Completed(_CountdownTimerMessage):
         """indicate that pomodoro has completed"""
-
+    
     # ==========================================================================
     # methods
     # ==========================================================================

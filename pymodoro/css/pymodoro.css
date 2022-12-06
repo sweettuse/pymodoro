@@ -7,6 +7,12 @@ Screen {
     layers: base sidebar config;
 }
 
+CurTimerComponent {
+	dock: top;
+	content-align: center middle;
+}
+
+
 CountdownTimerComponent {
     layout: horizontal;
     background: $boost;
