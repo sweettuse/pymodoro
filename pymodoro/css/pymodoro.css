@@ -7,9 +7,12 @@ Screen {
     layers: base sidebar config;
 }
 
-CurTimerComponent {
+GlobalTimerComponent {
 	dock: top;
 	content-align: center middle;
+	layout: grid;
+	grid-size: 3 1;
+	height: auto;
 }
 
 

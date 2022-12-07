@@ -24,6 +24,7 @@ from widgets.countdown_timer import CountdownTimer
 
 class _CountdownTimerMessage(Message):
     """base class to log all changes to the EventStore"""
+
     def __init__(self, sender: MessageTarget) -> None:
         super().__init__(sender)
         self.at = pendulum.now()
@@ -40,11 +41,9 @@ class _CountdownTimerMessage(Message):
 
     @property
     def component_id(self) -> str:
-        from widgets.countdown_timer.container import CountdownTimerComponent
+        from widgets.countdown_timer.component import CountdownTimerComponent
 
-        component = next(
-            a for a in self.sender.ancestors if isinstance(a, CountdownTimerComponent)
-        )
+        component = next(a for a in self.sender.ancestors if isinstance(a, CountdownTimerComponent))
         if component:
             return component.id
         return "unknown"
@@ -66,6 +65,10 @@ class CountdownTimerWidget(Static, can_focus=True):
     class Started(_CountdownTimerMessage):
         """indicate that widget has started"""
 
+        def __init__(self, sender: MessageTarget, remaining: float) -> None:
+            super().__init__(sender)
+            self.remaining = remaining
+
     class Stopped(_CountdownTimerMessage):
         """indicate that widget has stopped or paused"""
 
@@ -84,25 +87,40 @@ class CountdownTimerWidget(Static, can_focus=True):
 
     class Completed(_CountdownTimerMessage):
         """indicate that pomodoro has completed"""
-    
+
+    class NewSecond(Message):
+        """emit every time a second ticks"""
+
+        def __init__(self, sender: MessageTarget, remaining: float) -> None:
+            super().__init__(sender)
+            self.remaining = remaining
+
     # ==========================================================================
     # methods
     # ==========================================================================
 
     async def on_mount(self):
         self._refresh_timer = self.set_interval(1 / 60, self._update, pause=True)
+        self._refresh_global = self.set_interval(1 / 10, self._update_global_timer, pause=True)
         await self._update()
 
+    def _pause_or_resume_timers(self, pause: bool):
+        """if pause, pause timers. else resume"""
+        method = "pause" if pause else "resume"
+        for fn in self._refresh_global, self._refresh_timer:
+            getattr(fn, method)()
+
     async def start(self):
+        remaining = self.ct.remaining
         if not self.ct.start():
             return
-        self._refresh_timer.resume()
-        await self.emit(self.Started(self))
+        self._pause_or_resume_timers(pause=False)
+        await self.emit(self.Started(self, remaining))
 
     async def stop(self):
         if not self.ct.is_active:
             return 0.0
-        self._refresh_timer.pause()
+        self._pause_or_resume_timers(pause=True)
         elapsed = self.ct.stop()
         await self._update()
         await self.emit(self.Stopped(self, self.ct.remaining, elapsed))
@@ -125,3 +143,6 @@ class CountdownTimerWidget(Static, can_focus=True):
             hours_str = f"{hours:02,.0f}:"
 
         self.update(f"{hours_str}{minutes:02.0f}:{seconds:05.2f}")
+
+    async def _update_global_timer(self):
+        await self.emit(self.NewSecond(self, self.ct.remaining))

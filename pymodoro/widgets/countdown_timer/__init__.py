@@ -1,3 +1,3 @@
 from .timer import CountdownTimer
 from .widget import CountdownTimerWidget
-from .container import CountdownTimerComponent
+from .component import CountdownTimerComponent

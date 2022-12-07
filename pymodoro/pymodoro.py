@@ -17,7 +17,7 @@ from textual.message import Message, MessageTarget
 from textual.widgets import Button, Header, Footer, Static, TextLog, Input
 from textual.containers import Horizontal
 from textual.binding import Binding
-from hello_world.current_timer import CurTimerComponent
+from widgets.global_timer import GlobalTimerComponent, GlobalTimerWidget
 from widgets.configuration import ConfigForm
 from widgets.countdown_timer import CountdownTimerComponent, CountdownTimerWidget
 from pymodoro_state import StateStore
@@ -55,7 +55,7 @@ class Pymodoro(App):
                 CountdownTimerComponent(id=f"countdown_timer_container_{uuid4()}"),
             )
         yield Header()
-        yield CurTimerComponent()
+        yield GlobalTimerComponent()
         yield ConfigForm(classes="hidden")
         yield Container(*timers, id="timers")
         yield Footer()
@@ -126,19 +126,28 @@ class Pymodoro(App):
     # ==========================================================================
 
     def on_time_input_new_total_seconds(self):
+        """the total time for a pomodoro has been updated"""
         self._focus_ctc(0)
 
     async def on_countdown_timer_widget_started(
         self, event: CountdownTimerWidget.Started
     ):
         self.has_active_timer = True
+        await self.query_one(GlobalTimerWidget).post_message(event)
 
-    async def on_countdown_timer_widget_stopped(self):
+    async def on_countdown_timer_widget_stopped(self, event):
         self.has_active_timer = False
+        await self.query_one(GlobalTimerWidget).post_message(event)
 
+    async def on_countdown_timer_widget_new_second(
+        self, event: CountdownTimerWidget.NewSecond,
+    ):
+        await self.query_one(GlobalTimerWidget).post_message(event)
+        
     async def on_countdown_timer_widget_completed(
         self, event: CountdownTimerWidget.Completed
     ):
+        await self.query_one(GlobalTimerWidget).post_message(event)
         self.bell()
 
     # ==========================================================================
