@@ -43,7 +43,9 @@ class _CountdownTimerMessage(Message):
     def component_id(self) -> str:
         from widgets.countdown_timer.component import CountdownTimerComponent
 
-        component = next(a for a in self.sender.ancestors if isinstance(a, CountdownTimerComponent))
+        component = next(
+            a for a in self.sender.ancestors if isinstance(a, CountdownTimerComponent)
+        )
         if component:
             return component.id
         return "unknown"
@@ -101,7 +103,9 @@ class CountdownTimerWidget(Static, can_focus=True):
 
     async def on_mount(self):
         self._refresh_timer = self.set_interval(1 / 60, self._update, pause=True)
-        self._refresh_global = self.set_interval(1 / 10, self._update_global_timer, pause=True)
+        self._refresh_global = self.set_interval(
+            1 / 10, self._update_global_timer, pause=True
+        )
         await self._update()
 
     def _pause_or_resume_timers(self, pause: bool):
@@ -112,6 +116,7 @@ class CountdownTimerWidget(Static, can_focus=True):
 
     async def start(self):
         remaining = self.ct.remaining
+        self._completion_sent = False
         if not self.ct.start():
             return
         self._pause_or_resume_timers(pause=False)
@@ -123,7 +128,11 @@ class CountdownTimerWidget(Static, can_focus=True):
         self._pause_or_resume_timers(pause=True)
         elapsed = self.ct.stop()
         await self._update()
-        await self.emit(self.Stopped(self, self.ct.remaining, elapsed))
+
+        remaining = self.ct.remaining
+        await self.emit(self.Stopped(self, remaining, elapsed))
+        if not remaining:
+            await self.emit(self.Completed(self))
 
     async def reset(self):
         """reset time to original amount"""
@@ -133,7 +142,6 @@ class CountdownTimerWidget(Static, can_focus=True):
     async def _update(self):
         if self.ct.is_active and not self.ct.remaining:
             await self.stop()
-            await self.emit(self.Completed(self))
 
         minutes, seconds = divmod(self.ct.remaining, 60)
         hours, minutes = divmod(minutes, 60)

@@ -17,6 +17,7 @@ from textual.message import Message, MessageTarget
 from textual.widgets import Button, Header, Footer, Static, TextLog, Input
 from textual.containers import Horizontal
 from textual.binding import Binding
+from pymodoro.sound import play_sound
 from widgets.global_timer import GlobalTimerComponent, GlobalTimerWidget
 from widgets.configuration import ConfigForm
 from widgets.countdown_timer import CountdownTimerComponent, CountdownTimerWidget
@@ -30,6 +31,7 @@ HiddenBinding = partial(Binding, show=False)
 
 class Pymodoro(App):
     """main pymodoro application"""
+
     CSS_PATH = "css/pymodoro.css"
 
     BINDINGS = [
@@ -37,22 +39,30 @@ class Pymodoro(App):
         Binding("k", "focus_prev", "focus/move prev", key_display="k/K"),
         Binding("e", "edit_time", "edit total time", key_display="e"),
         Binding("space", "start_or_stop", "start or stop", key_display="space"),
+        Binding("A", "add_new_timer", "add new", key_display="A"),
+        Binding("X", "rm_selected_timer", "rm selected timer", key_display="X"),
+        Binding("U", "undo_rm_timer", "undo rm", key_display="U"),
         HiddenBinding("d", "dump_state", "dump state"),
         HiddenBinding("J", "move_down", "move widget down"),
         HiddenBinding("K", "move_up", "move widget up"),
         HiddenBinding("escape", "focus_container", "focus outer container"),
     ]
 
+    def _create_new_timer(self) -> CountdownTimerComponent:
+        return CountdownTimerComponent(id=f"countdown_timer_container_{uuid4()}")
+
     def compose(self) -> ComposeResult:
         self.has_active_timer = False
+        self._removed = []
+
         if stored_timers := StateStore.load():
             timers = map(CountdownTimerComponent.from_state, stored_timers)
         else:
             timers = (
-                CountdownTimerComponent(id=f"countdown_timer_container_{uuid4()}"),
-                CountdownTimerComponent(id=f"countdown_timer_container_{uuid4()}"),
-                CountdownTimerComponent(id=f"countdown_timer_container_{uuid4()}"),
-                CountdownTimerComponent(id=f"countdown_timer_container_{uuid4()}"),
+                self._create_new_timer(),
+                self._create_new_timer(),
+                self._create_new_timer(),
+                self._create_new_timer(),
             )
         yield Header()
         yield GlobalTimerComponent()
@@ -82,7 +92,16 @@ class Pymodoro(App):
         """set focus to previous timer"""
         self._focus_ctc(-1)
 
+    def action_move_down(self):
+        """move timer down one"""
+        self._move_timer(offset=1)
+
+    def action_move_up(self):
+        """move timer up one"""
+        self._move_timer(offset=-1)
+
     def action_focus_container(self):
+        """on hitting escape, focus the current container"""
         if ctc := self._focus_ctc(0):
             ctc.exit_edit_time()
 
@@ -110,16 +129,43 @@ class Pymodoro(App):
         ctc.query_one(button_id, Button).press()
 
     def action_quit(self):
+        """called by framework"""
         self.action_dump_state()
         self.exit()
 
-    def action_move_down(self):
-        """move timer down one"""
-        self._move_timer(offset=1)
+    def action_add_new_timer(self):
 
-    def action_move_up(self):
-        """move timer up one"""
-        self._move_timer(offset=-1)
+        self._add_timer(self._create_new_timer())
+
+    def action_undo_rm_timer(self):
+        if not self._removed:
+            return
+
+        state = self._removed.pop()
+        self._add_timer(CountdownTimerComponent.from_state(state))
+
+    def action_rm_selected_timer(self):
+        if not (focused := self._find_focused_or_focused_within()):
+            return
+
+        idx, ctcs = focused
+        if idx is None:
+            return
+
+        ctc = ctcs[idx]
+
+        num_ctcs = len(ctcs)
+        if num_ctcs == 1:
+            to_focus = None
+        elif idx == num_ctcs - 1:
+            to_focus = ctcs[idx - 1]
+        else:
+            to_focus = ctcs[idx + 1]
+
+        self._removed.append(ctc.dump_state())
+        ctc.remove()
+        if to_focus:
+            to_focus.focus()
 
     # ==========================================================================
     # event handlers
@@ -133,27 +179,32 @@ class Pymodoro(App):
         self, event: CountdownTimerWidget.Started
     ):
         self.has_active_timer = True
-        await self.query_one(GlobalTimerWidget).post_message(event)
+        await self._update_global_timer(event)
 
     async def on_countdown_timer_widget_stopped(self, event):
         self.has_active_timer = False
-        await self.query_one(GlobalTimerWidget).post_message(event)
+        await self._update_global_timer(event)
 
     async def on_countdown_timer_widget_new_second(
-        self, event: CountdownTimerWidget.NewSecond,
+        self,
+        event: CountdownTimerWidget.NewSecond,
     ):
-        await self.query_one(GlobalTimerWidget).post_message(event)
-        
+        await self._update_global_timer(event)
+
     async def on_countdown_timer_widget_completed(
         self, event: CountdownTimerWidget.Completed
     ):
+        await self._update_global_timer(event)
+        play_sound.play()
+
+    async def _update_global_timer(self, event):
+        """forward message on to global timer"""
+        event.stop()
         await self.query_one(GlobalTimerWidget).post_message(event)
-        self.bell()
 
     # ==========================================================================
     # helpers
     # ==========================================================================
-
 
     def _find_focused_or_focused_within(
         self,
@@ -211,8 +262,12 @@ class Pymodoro(App):
         new_ctc = CountdownTimerComponent.from_state(state)
         kw = {"before" if offset == -1 else "after": ctcs[new_idx]}
         ctc.remove()
-        self.query_one("#timers").mount(new_ctc, **kw)
-        new_ctc.focus()
+        self._add_timer(new_ctc, **kw)
+
+    def _add_timer(self, timer: CountdownTimerComponent, **kw):
+        self.query_one("#timers").mount(timer, **kw)
+        timer.focus()
+        timer.scroll_visible()
 
 
 if __name__ == "__main__":

@@ -107,7 +107,7 @@ class CountdownTimerComponent(Static, can_focus=True):
     async def on_time_input_new_total_seconds(self, msg: TimeInput.NewTotalSeconds):
         ctw = self.query_one(CountdownTimerWidget)
         ctw.ct.initial_seconds = msg.total_seconds
-        await ctw._update()
+        await ctw.reset()
         self.exit_edit_time()
 
     # ==========================================================================
