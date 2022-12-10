@@ -3,7 +3,6 @@
 - pomodoro app in textual
 - WIP, although i actually use it
 - mostly keyboard based
-- add/remove timers
 - save state between sessions
 - track total time spent
 - grab description info from linear.app
