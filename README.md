@@ -7,4 +7,5 @@
 - track total time spent
 - grab description info from linear.app
 
-<img width="936" alt="Screen Shot 2022-12-10 at 3 06 55 PM" src="https://user-images.githubusercontent.com/3999008/206873419-825fc05c-8ae5-4fda-8d01-0f89c0ce1ca6.png">
+
+<img width="982" alt="Screen Shot 2022-12-10 at 3 10 59 PM" src="https://user-images.githubusercontent.com/3999008/206873561-8f9b7388-c04d-4ae2-a2a5-7115e87fb87a.png">
