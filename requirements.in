@@ -7,3 +7,4 @@ requests
 keyring
 pendulum
 git+https://github.com/sweettuse/text_to_image.git
+simpleaudio
