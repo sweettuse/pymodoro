@@ -1,4 +1,5 @@
 from __future__ import annotations
+import os
 
 from contextlib import suppress
 from dataclasses import asdict, dataclass
@@ -7,23 +8,46 @@ import json
 from pathlib import Path
 from typing import Literal, Optional, TYPE_CHECKING, TypeAlias
 
+import pendulum
+
 
 if TYPE_CHECKING:
     from widgets.countdown_timer import CountdownTimerComponent
 
+BASE_PATH = Path("~/.pymodoro").expanduser()
+with suppress(FileExistsError):
+    os.mkdir(str(BASE_PATH))
+
 
 class EventStore:
-    store = str(Path("~/.pymodoro.events").expanduser())
+    store = str(BASE_PATH / "events")
+    in_mem_events = []
 
     @classmethod
     def register(cls, d: dict):
+        d["at"] = d.get("at", pendulum.now())
+        cls.in_mem_events.append(d)
         msg = json.dumps(d)
         with open(cls.store, "a") as f:
             f.write(msg + "\n")
 
+    @classmethod
+    def load(cls):
+        with open(cls.store) as f:
+            return [cls._parse(l.strip()) for l in f]
+
+    @classmethod
+    def _parse(cls, s: str) -> dict:
+        res = json.loads(s)
+        res["at"] = pendulum.parse(res["at"])  # type: ignore  # pylance so dumb - thinks `parse` is not exported but it is :(
+        return res
+
+
+Status: TypeAlias = Literal["todo", "in_progress", "completed", "deleted"]
+
 
 class StateStore:
-    store = str(Path("~/.pymodoro").expanduser())
+    store = str(BASE_PATH / "state")
 
     @classmethod
     def load(cls) -> Optional[list[CountdownTimerState]]:
@@ -33,19 +57,23 @@ class StateStore:
             return [CountdownTimerState(**v) for v in res]
 
     @classmethod
+    def load_current(cls) -> Optional[list[CountdownTimerState]]:
+        """load not deleted timers"""
+        if not (states := cls.load()):
+            return None
+        return [cts for cts in states if cts.status != "deleted"]
+
+    @classmethod
     def dump(cls, states: list[CountdownTimerState]):
         dicts = [asdict(s) for s in states]
         with open(cls.store, "w") as f:
             json.dump(dicts, f, indent=2)
 
 
-Stage: TypeAlias = Literal["todo", "in_progress", "done", "canceled"]
-
-
 @dataclass
 class CountdownTimerState:
     id: Optional[str] = ""
-    stage: Stage = "in_progress"
+    status: Status = "in_progress"
     total_seconds_completed: float = 0.0
     num_pomodoros_completed: int = 0
 
@@ -67,7 +95,7 @@ class CountdownTimerState:
 
         return cls(
             ctc.id,
-            ctc.state.stage,
+            ctc.state.status,
             ctc.state.total_seconds_completed,
             ctc.state.num_pomodoros_completed,
             linear_state=ctc.query_one("#linear", TextInput).dump_state(),

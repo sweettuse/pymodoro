@@ -42,7 +42,7 @@ class CountdownTimerComponent(Static, can_focus=True):
             TextInput(id="description", placeholder="description"),
             Button("start", id="start", variant="success"),
             Button("stop", id="stop", variant="error", classes="hidden"),
-            CountdownTimerWidget(CountdownTimer(10)),
+            CountdownTimerWidget(CountdownTimer(25 * 60)),
             TimeInput(id="time_input", classes="hidden"),
             Button("reset", id="reset", variant="default"),
         )
@@ -113,7 +113,7 @@ class CountdownTimerComponent(Static, can_focus=True):
     # ==========================================================================
     # helpers
     # ==========================================================================
-    def dump_state(self):
+    def dump_state(self) -> CountdownTimerState:
         self.state = CountdownTimerState.from_countdown_timer_container(self)
         return self.state
 

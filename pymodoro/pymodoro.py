@@ -39,9 +39,9 @@ class Pymodoro(App):
         Binding("k", "focus_prev", "focus/move prev", key_display="k/K"),
         Binding("e", "edit_time", "edit total time", key_display="e"),
         Binding("space", "start_or_stop", "start or stop", key_display="space"),
-        Binding("A", "add_new_timer", "add new", key_display="A"),
-        Binding("X", "rm_selected_timer", "rm selected timer", key_display="X"),
-        Binding("U", "undo_rm_timer", "undo rm", key_display="U"),
+        Binding("A", "add_new_timer", "add timer", key_display="A"),
+        Binding("D", "delete_selected_timer", "del timer", key_display="D"),
+        Binding("U", "undo_delete_timer", "undo del", key_display="U"),
         HiddenBinding("d", "dump_state", "dump state"),
         HiddenBinding("J", "move_down", "move widget down"),
         HiddenBinding("K", "move_up", "move widget up"),
@@ -53,9 +53,9 @@ class Pymodoro(App):
 
     def compose(self) -> ComposeResult:
         self.has_active_timer = False
-        self._removed = []
+        self._deleted = []
 
-        if stored_timers := StateStore.load():
+        if stored_timers := StateStore.load_current():
             timers = map(CountdownTimerComponent.from_state, stored_timers)
         else:
             timers = (
@@ -74,15 +74,9 @@ class Pymodoro(App):
     # actions
     # ==========================================================================
     def action_dump_state(self):
-        print("============")
-        timers = self.query_one("#timers")
-        for c in timers.children:
-            print(c)
-
-        # print(list(self.query("#timers")))
         timers = [ctc.dump_state() for ctc in self.query(CountdownTimerComponent)]
+        timers.extend(self._deleted)
         StateStore.dump(timers)
-        print("============")
 
     def action_focus_next(self):
         """set focus to next timer"""
@@ -134,17 +128,16 @@ class Pymodoro(App):
         self.exit()
 
     def action_add_new_timer(self):
-
         self._add_timer(self._create_new_timer())
 
-    def action_undo_rm_timer(self):
-        if not self._removed:
+    def action_undo_delete_timer(self):
+        if not self._deleted:
             return
 
-        state = self._removed.pop()
+        state = self._deleted.pop()
         self._add_timer(CountdownTimerComponent.from_state(state))
 
-    def action_rm_selected_timer(self):
+    def action_delete_selected_timer(self):
         if not (focused := self._find_focused_or_focused_within()):
             return
 
@@ -162,7 +155,9 @@ class Pymodoro(App):
         else:
             to_focus = ctcs[idx + 1]
 
-        self._removed.append(ctc.dump_state())
+        state = ctc.dump_state()
+        state.status = "deleted"
+        self._deleted.append(state)
         ctc.remove()
         if to_focus:
             to_focus.focus()

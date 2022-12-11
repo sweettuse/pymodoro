@@ -19,13 +19,14 @@ GlobalTimerComponent {
 CountdownTimerComponent {
     layout: horizontal;
     background: $boost;
-    height: 7;
+    height: 8;
     padding: 1;
     margin: 1;
     /* dock: top; */
     /* border: heavy round grey; */
     overflow-y: auto;
     /* overflow-x: scroll; */
+	/* content-align: center middle; */
 }
 
 CountdownTimerWidget {
@@ -45,6 +46,11 @@ CountdownTimerComponent:focus {
 ConfigForm {
 
 }
+
+/* Footer {
+    height: 1;
+    overflow: auto;
+} */
 
 ConfigFields {
     background: $panel;
