@@ -38,7 +38,7 @@ class CountdownTimerComponent(Static, can_focus=True):
 
         self.state = CountdownTimerState(self.id)
         yield Horizontal(
-            TextInput(id="linear", placeholder="linear issue id"),
+            LinearInput(id="linear", placeholder="linear issue id"),
             TextInput(id="description", placeholder="description"),
             Button("start", id="start", variant="success"),
             Button("stop", id="stop", variant="error", classes="hidden"),
