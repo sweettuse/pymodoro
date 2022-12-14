@@ -113,7 +113,7 @@ class Pymodoro(App):
 
         idx, ctcs = focused
         ctc = ctcs[idx or 0]
-        if ctc.has_class("active"):
+        if ctc.is_active:
             button_id = "#stop"
         else:
             if self.has_active_timer:
