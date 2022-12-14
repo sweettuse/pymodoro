@@ -93,9 +93,12 @@ class CountdownTimerWidget(Static, can_focus=True):
     class NewSecond(Message):
         """emit every time a second ticks"""
 
-        def __init__(self, sender: MessageTarget, remaining: float) -> None:
+        def __init__(
+            self, sender: MessageTarget, remaining: float, elapsed: float
+        ) -> None:
             super().__init__(sender)
             self.remaining = remaining
+            self.elapsed = float
 
     # ==========================================================================
     # methods
@@ -104,7 +107,7 @@ class CountdownTimerWidget(Static, can_focus=True):
     async def on_mount(self):
         self._refresh_timer = self.set_interval(1 / 60, self._update, pause=True)
         self._refresh_global = self.set_interval(
-            1 / 10, self._update_global_timer, pause=True
+            1 / 5, self._update_global_timer, pause=True
         )
         await self._update()
 
@@ -146,11 +149,8 @@ class CountdownTimerWidget(Static, can_focus=True):
         minutes, seconds = divmod(self.ct.remaining, 60)
         hours, minutes = divmod(minutes, 60)
 
-        hours_str = ""
-        if hours:
-            hours_str = f"{hours:02,.0f}:"
-
+        hours_str = f"{hours:02,.0f}:" if hours else ""
         self.update(f"{hours_str}{minutes:02.0f}:{seconds:05.2f}")
 
     async def _update_global_timer(self):
-        await self.emit(self.NewSecond(self, self.ct.remaining))
+        await self.emit(self.NewSecond(self, self.ct.remaining, self.ct.elapsed))

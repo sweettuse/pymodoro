@@ -34,16 +34,18 @@ class CountdownTimerComponent(Static, can_focus=True):
     @property
     def is_active(self) -> bool:
         return self.has_class("active")
-    
+
     @property
     def _can_start_or_stop(self) -> bool:
         return not self.app.has_active_timer or self.is_active
 
     def compose(self) -> ComposeResult:
         if state := getattr(self, "state", None):
-            yield from self.compose_from_state(state)
-            return
+            yield from self._compose_from_state(state)
+        else:
+            yield from self._compose_new()
 
+    def _compose_new(self):
         self.state = CountdownTimerState(self.id)
         yield Horizontal(
             LinearInput(id="linear", placeholder="linear issue id"),
@@ -55,13 +57,15 @@ class CountdownTimerComponent(Static, can_focus=True):
             Button("reset", id="reset", variant="default"),
         )
 
-    def compose_from_state(self, state: CountdownTimerState):
+    def _compose_from_state(self, state: CountdownTimerState):
         yield Horizontal(
             LinearInput.from_state(state.linear_state),
             TextInput.from_state(state.description_state),
             Button("start", id="start", variant="success"),
             Button("stop", id="stop", variant="error", classes="hidden"),
-            CountdownTimerWidget(CountdownTimer.from_state(state.countdown_timer_state)),
+            CountdownTimerWidget(
+                CountdownTimer.from_state(state.countdown_timer_state)
+            ),
             TimeInput.from_state(state.time_input_state),
             Button("reset", id="reset", variant="default"),
         )
@@ -70,7 +74,7 @@ class CountdownTimerComponent(Static, can_focus=True):
         button_id = event.button.id
         # if app has active timer and this one isn't it
         self.focus()
-        if not self._can_start_or_stop and button_id in {'start', 'stop'}:
+        if not self._can_start_or_stop and button_id in {"start", "stop"}:
             return
 
         ctw = self.query_one(CountdownTimerWidget)
@@ -96,15 +100,21 @@ class CountdownTimerComponent(Static, can_focus=True):
         desc = self.query_one("#description", TextInput)
         desc.value = event.title
 
-    async def on_countdown_timer_widget_started(self, event: CountdownTimerWidget.Started):
+    async def on_countdown_timer_widget_started(
+        self, event: CountdownTimerWidget.Started
+    ):
         self._set_active(active=True)
 
-    async def on_countdown_timer_widget_stopped(self, event: CountdownTimerWidget.Stopped):
+    async def on_countdown_timer_widget_stopped(
+        self, event: CountdownTimerWidget.Stopped
+    ):
         self.log(f"{event.sender} timer stopped")
         self.state.total_seconds_completed += event.elapsed
         self._set_active(active=False)
 
-    async def on_countdown_timer_widget_completed(self, event: CountdownTimerWidget.Completed):
+    async def on_countdown_timer_widget_completed(
+        self, event: CountdownTimerWidget.Completed
+    ):
         self.log(f"{event.sender} timer completed")
         self.state.num_pomodoros_completed += 1
         self._set_active(active=False)

@@ -45,7 +45,7 @@ class CountdownTimer:
     def __init__(self, initial_seconds=25 * 60.0):
         self.initial_seconds = initial_seconds
         self._active = False
-        self._elapsed = 0.0
+        self.elapsed = 0.0
         self.period = Period()
 
     def dump_state(self) -> dict:
@@ -72,12 +72,12 @@ class CountdownTimer:
             return 0.0
 
         period_elapsed = self.period.stop()
-        self._elapsed += period_elapsed
+        self.elapsed += period_elapsed
         self._active = False
         return period_elapsed
 
     def reset(self):
-        self._elapsed = 0.0
+        self.elapsed = 0.0
         return self.period.stop()
 
     @property
@@ -92,8 +92,8 @@ class CountdownTimer:
     @property
     def total_elapsed(self) -> float:
         """how much time has elapsed in seconds"""
-        return self._elapsed + self.period.elapsed
+        return self.elapsed + self.period.elapsed
 
     @total_elapsed.setter
     def total_elapsed(self, v):
-        self._elapsed = v
+        self.elapsed = v
