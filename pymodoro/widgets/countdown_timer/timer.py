@@ -96,4 +96,5 @@ class CountdownTimer:
 
     @total_elapsed.setter
     def total_elapsed(self, v):
+        """when loading state"""
         self.elapsed = v

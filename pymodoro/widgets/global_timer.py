@@ -11,6 +11,8 @@ from textual import events
 from textual.scroll_view import ScrollView
 from rich.color import Color
 from rich.style import Style
+from rich.panel import Panel
+from rich.align import Align
 from rich.segment import Segment
 from textual.reactive import reactive, var, Reactive
 from textual.timer import Timer
@@ -25,7 +27,6 @@ from widgets.countdown_timer.widget import CountdownTimerWidget
 from pymodoro_state import StateStore
 from text_to_image import Font, Face
 from text_to_image.api import FONT_PATH
-from rich.panel import Panel
 
 
 class Spacer(Static):
@@ -89,7 +90,7 @@ class GlobalTimerWidget(Static):
     # event handlers
     # ==========================================================================
     def on_mount(self, event: events.Mount) -> None:
-        self.font = Font(self.face, 12)
+        self.font = Font(self.face, 14)
         self.remaining = 0
 
     def on_countdown_timer_widget_started(

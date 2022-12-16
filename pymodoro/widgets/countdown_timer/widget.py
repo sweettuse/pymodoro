@@ -15,6 +15,8 @@ from textual.scroll_view import ScrollView
 from rich.color import Color
 from rich.style import Style
 from rich.segment import Segment
+from rich.align import Align
+from rich.panel import Panel
 from textual.reactive import reactive
 from textual.widgets import Button, Header, Footer, Static
 from pymodoro_state import EventStore
@@ -31,7 +33,7 @@ class _CountdownTimerMessage(Message):
         EventStore.register(self.event_data)
 
     @property
-    def event_data(self) -> dict[str, str]:
+    def event_data(self) -> dict[str, Any]:
         """as this should be stored in the EventStore"""
         return dict(
             component_id=self.component_id,
@@ -43,9 +45,7 @@ class _CountdownTimerMessage(Message):
     def component_id(self) -> str:
         from widgets.countdown_timer.component import CountdownTimerComponent
 
-        component = next(
-            a for a in self.sender.ancestors if isinstance(a, CountdownTimerComponent)
-        )
+        component = next(a for a in self.sender.ancestors if isinstance(a, CountdownTimerComponent))
         if component:
             return component.id
         return "unknown"
@@ -74,17 +74,20 @@ class CountdownTimerWidget(Static, can_focus=True):
     class Stopped(_CountdownTimerMessage):
         """indicate that widget has stopped or paused"""
 
-        def __init__(self, sender: MessageTarget, remaining: float, elapsed: float):
+        def __init__(
+            self, sender: MessageTarget, remaining: float, elapsed: float, total_elapsed: float
+        ):
             self.remaining = remaining
             self.elapsed = elapsed
+            self.total_elapsed = total_elapsed
             super().__init__(sender)
 
         @property
-        def event_data(self) -> dict[str, str]:
+        def event_data(self) -> dict[str, Any]:
             """as this should be stored in the EventStore"""
             return super().event_data | dict(
-                remaining=str(self.remaining),
-                elapsed=str(self.elapsed),
+                remaining=round(self.remaining, 3),
+                elapsed=round(self.elapsed, 3),
             )
 
     class Completed(_CountdownTimerMessage):
@@ -93,12 +96,10 @@ class CountdownTimerWidget(Static, can_focus=True):
     class NewSecond(Message):
         """emit every time a second ticks"""
 
-        def __init__(
-            self, sender: MessageTarget, remaining: float, elapsed: float
-        ) -> None:
+        def __init__(self, sender: MessageTarget, remaining: float, elapsed: float) -> None:
             super().__init__(sender)
             self.remaining = remaining
-            self.elapsed = float
+            self.elapsed = elapsed
 
     # ==========================================================================
     # methods
@@ -106,9 +107,7 @@ class CountdownTimerWidget(Static, can_focus=True):
 
     async def on_mount(self):
         self._refresh_timer = self.set_interval(1 / 60, self._update, pause=True)
-        self._refresh_global = self.set_interval(
-            1 / 5, self._update_global_timer, pause=True
-        )
+        self._refresh_global = self.set_interval(1 / 5, self._update_global_timer, pause=True)
         await self._update()
 
     def _pause_or_resume_timers(self, pause: bool):
@@ -133,7 +132,7 @@ class CountdownTimerWidget(Static, can_focus=True):
         await self._update()
 
         remaining = self.ct.remaining
-        await self.emit(self.Stopped(self, remaining, elapsed))
+        await self.emit(self.Stopped(self, remaining, elapsed, self.ct.total_elapsed))
         if not remaining:
             await self.emit(self.Completed(self))
 
@@ -150,7 +149,10 @@ class CountdownTimerWidget(Static, can_focus=True):
         hours, minutes = divmod(minutes, 60)
 
         hours_str = f"{hours:02,.0f}:" if hours else ""
-        self.update(f"{hours_str}{minutes:02.0f}:{seconds:05.2f}")
+
+        text = Align(f"{hours_str}{minutes:02.0f}:{seconds:05.2f}", 'center', vertical='middle')
+        res = Panel(text, title='current')
+        self.update(res)
 
     async def _update_global_timer(self):
-        await self.emit(self.NewSecond(self, self.ct.remaining, self.ct.elapsed))
+        await self.emit(self.NewSecond(self, self.ct.remaining, self.ct.period.elapsed))

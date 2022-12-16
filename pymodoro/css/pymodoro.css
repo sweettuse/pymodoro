@@ -2,7 +2,7 @@ $desc_color: blue;
 $linear_color: purple;
 $timer_width: 13;
 $text_padding: 1 0 1 1;
-
+$element_height: 5;
 Screen {
     layers: base sidebar config;
 }
@@ -15,6 +15,13 @@ GlobalTimerComponent {
 	height: auto;
 }
 
+TotalTimeSpent {
+    width: 16;
+	content-align: center middle;
+    height: $element_height;
+    /* color: blue; */
+    /* background: grey; */
+}
 
 CountdownTimerComponent {
     layout: horizontal;
@@ -31,16 +38,16 @@ CountdownTimerComponent {
 
 CountdownTimerWidget {
     width: $timer_width;
-    height: 3;
-    padding: 2;
+    height: $element_height;
+    /* padding: 2; */
     content-align: center middle;
 }
 
-CountdownTimerComponent.active {
-    background: palevioletred;
-}
 CountdownTimerComponent:focus {
     background: green;
+}
+CountdownTimerComponent.active {
+    background: palevioletred;
 }
 
 ConfigForm {
@@ -71,7 +78,7 @@ Button {
 }
 
 #linear {
-    height: 5;
+    height: $element_height;
     border: round $linear_color;
     width: 20;
     padding: $text_padding;
@@ -82,15 +89,15 @@ Button {
 }
 
 #description {
-    height: 5;
+    height: $element_height;
     border: round $desc_color;
-    width: 40;
+    width: 60;
     padding: $text_padding;
 }
 
 #time_input {
     width: $timer_width;
-    height: 5;
+    height: $element_height;
     border: round $desc_color;
     border: none;
     padding: 2;
@@ -98,9 +105,6 @@ Button {
 
 #description:focus {
     border: tall $desc_color;
-}
-
-#time_input {
 }
 
 .hidden {

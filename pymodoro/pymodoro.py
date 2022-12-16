@@ -214,7 +214,7 @@ class Pymodoro(App):
             return
 
         for i, ctc in enumerate(ctcs):
-            if ctc.has_focus or ctc.has_pseudo_class("focus-within"):
+            if ctc.focused_or_within:
                 break
         else:
             i = None
