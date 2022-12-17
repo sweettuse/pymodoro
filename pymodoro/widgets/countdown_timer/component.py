@@ -131,6 +131,10 @@ class CountdownTimerComponent(Static, can_focus=True):
 
     async def stop(self):
         await self.query_one(CountdownTimerWidget).stop()
+    
+    async def start(self):
+        await self.query_one(CountdownTimerWidget).start()
+
 
     async def on_linear_input_new_title(self, event: LinearInput.NewTitle):
         """we received a new title from linear, so update the description with it"""
@@ -178,7 +182,7 @@ class CountdownTimerComponent(Static, can_focus=True):
     # helpers
     # ==========================================================================
     def dump_state(self) -> CountdownTimerState:
-        self.state = CountdownTimerState.from_countdown_timer_container(self)
+        self.state = CountdownTimerState.from_countdown_timer_component(self)
         return self.state
 
     def enter_edit_time(self):

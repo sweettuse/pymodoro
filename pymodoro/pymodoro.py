@@ -17,7 +17,7 @@ from textual.message import Message, MessageTarget
 from textual.widgets import Button, Header, Footer, Static, TextLog, Input
 from textual.containers import Horizontal
 from textual.binding import Binding
-from pymodoro.sound import play_sound
+from sound import play_sound
 from widgets.global_timer import GlobalTimerComponent, GlobalTimerWidget
 from widgets.configuration import ConfigForm
 from widgets.countdown_timer import CountdownTimerComponent, CountdownTimerWidget
@@ -79,13 +79,13 @@ class Pymodoro(App):
         """set focus to previous timer"""
         self._focus_ctc(-1)
 
-    def action_move_down(self):
+    async def action_move_down(self):
         """move timer down one"""
-        self._move_timer(offset=1)
+        await self._move_timer(offset=1)
 
-    def action_move_up(self):
+    async def action_move_up(self):
         """move timer up one"""
-        self._move_timer(offset=-1)
+        await self._move_timer(offset=-1)
 
     def action_focus_container(self):
         """on hitting escape, focus the current container"""
@@ -122,15 +122,15 @@ class Pymodoro(App):
         self.action_dump_state()
         self.exit()
 
-    def action_add_new_timer(self):
-        self._add_timer(self._create_new_timer())
+    async def action_add_new_timer(self):
+        await self._add_timer(self._create_new_timer())
 
-    def action_undo_delete_timer(self):
+    async def action_undo_delete_timer(self):
         if not self._deleted:
             return
 
         state = self._deleted.pop()
-        self._add_timer(CountdownTimerComponent.from_state(state))
+        await self._add_timer(CountdownTimerComponent.from_state(state))
 
     def action_delete_selected_timer(self):
         if not (focused := self._find_focused_or_focused_within()):
@@ -231,7 +231,7 @@ class Pymodoro(App):
         ctc.focus()
         return ctc
 
-    def _move_timer(self, offset: int):
+    async def _move_timer(self, offset: int):
         """move timer container up or down in the list"""
         if offset not in {1, -1}:
             return
@@ -249,15 +249,18 @@ class Pymodoro(App):
 
         ctc = ctcs[idx]
         state = ctc.dump_state()
+        if ctc.is_active:
+            ctc.query_one('#stop', Button).press()
         new_ctc = CountdownTimerComponent.from_state(state)
         kw = {"before" if offset == -1 else "after": ctcs[new_idx]}
         ctc.remove()
-        self._add_timer(new_ctc, **kw)
+        await self._add_timer(new_ctc, **kw)
 
-    def _add_timer(self, timer: CountdownTimerComponent, **kw):
-        self.query_one("#timers").mount(timer, **kw)
+    async def _add_timer(self, timer: CountdownTimerComponent, **kw):
+        await self.query_one("#timers").mount(timer, **kw)
         timer.focus()
         timer.scroll_visible()
+        return timer
 
 
 if __name__ == "__main__":

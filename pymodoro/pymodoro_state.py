@@ -91,13 +91,14 @@ class CountdownTimerState:
     description_state: Optional[dict] = None
     countdown_timer_state: Optional[dict] = None
     time_input_state: Optional[dict] = None
+    was_active: bool = False
 
     def calc_num_pomodoros(self, current_pomodoro_secs: float) -> int:
         """number of pomodoros that would've been completed based on the current length"""
         return int(self.total_seconds_completed / current_pomodoro_secs)
 
     @classmethod
-    def from_countdown_timer_container(
+    def from_countdown_timer_component(
         cls, ctc: CountdownTimerComponent
     ) -> CountdownTimerState:
         from widgets.text_input import TextInput
@@ -112,6 +113,7 @@ class CountdownTimerState:
             description_state=ctc.query_one("#description", TextInput).dump_state(),
             countdown_timer_state=ctc.query_one(CountdownTimerWidget).ct.dump_state(),
             time_input_state=ctc.query_one("#time_input", TextInput).dump_state(),
+            was_active=ctc.is_active,
         )
 
     @classmethod
