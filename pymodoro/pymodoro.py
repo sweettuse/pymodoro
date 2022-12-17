@@ -21,9 +21,7 @@ from pymodoro.sound import play_sound
 from widgets.global_timer import GlobalTimerComponent, GlobalTimerWidget
 from widgets.configuration import ConfigForm
 from widgets.countdown_timer import CountdownTimerComponent, CountdownTimerWidget
-from pymodoro_state import StateStore
-
-from uuid import uuid4
+from pymodoro_state import StateStore, CountdownTimerState
 
 
 HiddenBinding = partial(Binding, show=False)
@@ -49,21 +47,17 @@ class Pymodoro(App):
     ]
 
     def _create_new_timer(self) -> CountdownTimerComponent:
-        return CountdownTimerComponent(id=f"countdown_timer_container_{uuid4()}")
+        return CountdownTimerComponent.new_default()
 
     def compose(self) -> ComposeResult:
         self.has_active_timer = False
         self._deleted = []
 
-        if stored_timers := StateStore.load_current():
-            timers = map(CountdownTimerComponent.from_state, stored_timers)
+        if states := StateStore.load_current():
+            timers = map(CountdownTimerComponent.from_state, states)
         else:
-            timers = (
-                self._create_new_timer(),
-                self._create_new_timer(),
-                self._create_new_timer(),
-                self._create_new_timer(),
-            )
+            timers = (self._create_new_timer() for _ in range(4))
+
         yield Header()
         yield GlobalTimerComponent()
         yield ConfigForm(classes="hidden")

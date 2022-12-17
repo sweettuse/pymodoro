@@ -42,7 +42,6 @@ class LinearInput(TextInput):
         if event.key != "enter":
             return
 
-        title = None
         if not self.value:
             title = ""
         else:

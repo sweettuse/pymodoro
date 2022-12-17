@@ -20,11 +20,14 @@ with suppress(FileExistsError):
 
 
 class EventStore:
+    """store relevant events out to file"""
+
     store = str(BASE_PATH / "events")
     in_mem_events = []
 
     @classmethod
     def register(cls, d: dict):
+        """log event dict to events file"""
         d["at"] = d.get("at", pendulum.now())
         cls.in_mem_events.append(d)
         msg = json.dumps(d)
@@ -47,6 +50,11 @@ Status: TypeAlias = Literal["todo", "in_progress", "completed", "deleted"]
 
 
 class StateStore:
+    """store/read timer state to/from file.
+
+    allows rehydrating of timers on startup
+    """
+
     store = str(BASE_PATH / "state")
 
     @classmethod
@@ -72,6 +80,8 @@ class StateStore:
 
 @dataclass
 class CountdownTimerState:
+    """class storing all data to rehydrate a CountdownTimerComponent"""
+
     id: Optional[str] = ""
     status: Status = "in_progress"
     total_seconds_completed: float = 0.0
@@ -103,3 +113,48 @@ class CountdownTimerState:
             countdown_timer_state=ctc.query_one(CountdownTimerWidget).ct.dump_state(),
             time_input_state=ctc.query_one("#time_input", TextInput).dump_state(),
         )
+
+    @classmethod
+    def new_default(cls) -> CountdownTimerState:
+        """create new default state with id added"""
+        from widgets.countdown_timer import CountdownTimerComponent
+
+        return cls(
+            **(dict(id=CountdownTimerComponent.new_id()) | json.loads(default_config))
+        )
+
+
+default_config = """
+  {
+    "status": "in_progress",     
+    "total_seconds_completed": 0.0,
+    "num_pomodoros_completed": 0,
+    "linear_state": {   
+      "classes": [],   
+      "id": "linear",                  
+      "value": "",     
+      "placeholder": "linear issue id",
+      "password": false                                                    
+    },                      
+    "description_state": {         
+      "classes": [],             
+      "id": "description",         
+      "value": "",     
+      "placeholder": "description",
+      "password": false       
+    },                                 
+    "countdown_timer_state": {         
+      "initial_seconds": 1500,
+      "total_elapsed": 0.0
+    },              
+    "time_input_state": { 
+      "classes": [
+        "hidden"                   
+      ],               
+      "id": "time_input",
+      "value": "",            
+      "placeholder": "",      
+      "password": false   
+    } 
+  }
+"""

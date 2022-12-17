@@ -5,6 +5,7 @@ from enum import Enum
 from functools import partial
 
 from typing import Any, Optional
+from uuid import uuid4
 from textual.app import App, ComposeResult
 
 from textual.containers import Container
@@ -65,6 +66,14 @@ class CountdownTimerComponent(Static, can_focus=True):
         res.state = state
         return res
 
+    @classmethod
+    def new_id(cls) -> str:
+        return f"countdown_timer_container_{uuid4()}"
+    
+    @classmethod
+    def new_default(cls) -> CountdownTimerComponent:
+        return cls.from_state(CountdownTimerState.new_default())
+
     @property
     def is_active(self) -> bool:
         return self.has_class("active")
@@ -78,30 +87,11 @@ class CountdownTimerComponent(Static, can_focus=True):
         return not self.app.has_active_timer or self.is_active
 
     def compose(self) -> ComposeResult:
-        if state := getattr(self, "state", None):
-            yield from self._compose_from_state(state)
-        else:
-            yield from self._compose_new()
+        if not (state := getattr(self, "state", None)):
+            state = CountdownTimerState.new_default()
 
-    def _compose_new(self):
-        self.state = CountdownTimerState(self.id)
-        tts = TotalTimeSpent(id="total")
-        tts.prev_spent = self.state.total_seconds_completed
-        yield Horizontal(
-            # Caret(id='caret'),
-            LinearInput(id="linear", placeholder="linear issue id"),
-            TextInput(id="description", placeholder="description"),
-            Button("start", id="start", variant="success"),
-            Button("stop", id="stop", variant="error", classes="hidden"),
-            TimeGroup(
-                CountdownTimerWidget(CountdownTimer(25 * 60)),
-                TimeInput(id="time_input", classes="hidden"),
-                tts,
-            ),
-            Button("reset", id="reset", variant="default"),
-        )
+        self.state = state
 
-    def _compose_from_state(self, state: CountdownTimerState):
         tts = TotalTimeSpent(id="total")
         tts.prev_spent = self.state.total_seconds_completed
         yield Horizontal(
