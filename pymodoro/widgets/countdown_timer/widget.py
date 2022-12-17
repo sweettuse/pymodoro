@@ -19,6 +19,7 @@ from rich.align import Align
 from rich.panel import Panel
 from textual.reactive import reactive
 from textual.widgets import Button, Header, Footer, Static
+from utils import format_time
 from pymodoro_state import EventStore
 
 from widgets.countdown_timer import CountdownTimer
@@ -155,15 +156,8 @@ class CountdownTimerWidget(Static, can_focus=True):
         if self.ct.is_active and not self.ct.remaining:
             await self.stop()
 
-        minutes, seconds = divmod(self.ct.remaining, 60)
-        hours, minutes = divmod(minutes, 60)
-
-        hours_str = f"{hours:02,.0f}:" if hours else ""
-
-        text = Align(
-            f"{hours_str}{minutes:02.0f}:{seconds:05.2f}", "center", vertical="middle"
-        )
-        res = Panel(text, title="current")
+        text = Align(format_time(self.ct.remaining), "center", vertical="middle")
+        res = Panel(text, title="remaining")
         self.update(res)
 
     async def _update_global_timer(self):

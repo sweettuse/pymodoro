@@ -20,6 +20,7 @@ from textual.message import Message, MessageTarget
 from textual.widgets import Button, Header, Footer, Static, TextLog, Input
 from textual.containers import Horizontal
 from textual.binding import Binding
+from utils import format_time
 from widgets.countdown_timer.widget import CountdownTimerWidget
 
 # from widgets.configuration import ConfigForm
@@ -56,14 +57,7 @@ class GlobalTimerWidget(Static):
 
     @property
     def _remaining_str(self) -> str:
-        rem = int(self.remaining)
-        minutes, seconds = divmod(rem, 60)
-        hours, minutes = divmod(minutes, 60)
-        hours_str = ""
-        if hours:
-            hours_str = f"{hours:02,d}:"
-
-        return f"{hours_str}{minutes:02d}:{seconds:02d}"
+        return format_time(int(self.remaining)).strip()
 
     @property
     def color(self):
@@ -82,8 +76,7 @@ class GlobalTimerWidget(Static):
         self._update()
 
     def _update(self):
-        rem = int(self.remaining)
-        self.last_seen = rem
+        self.last_seen = int(self.remaining)
         rich_str = self.font.to_rich(self._remaining_str, color=self.color)
         self.update(rich_str)
 

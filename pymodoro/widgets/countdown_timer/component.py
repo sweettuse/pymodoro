@@ -21,6 +21,7 @@ from textual.message import Message, MessageTarget
 from textual.widgets import Button, Header, Footer, Static, TextLog, Input
 from textual.containers import Horizontal, Vertical
 from textual.binding import Binding
+from utils import format_time
 from pymodoro_state import CountdownTimerState, StateStore
 from widgets.text_input import LinearInput, TextInput, TimeInput
 
@@ -33,16 +34,8 @@ class TotalTimeSpent(Static):
 
     def watch_spent_in_current_period(self, new_amount):
         rem = int(new_amount + self.prev_spent)
-        minutes, seconds = divmod(rem, 60)
-        hours, minutes = divmod(minutes, 60)
-        hours_str = ""
-        if hours:
-            hours_str = f"{hours:02,d}:"
-
-        text = Align(
-            f"{hours_str}{minutes:02d}:{seconds:02d}", "center", vertical="middle"
-        )
-        res = Panel(text, title="total spent")
+        text = Align(format_time(rem) , "center", vertical="middle")
+        res = Panel(text, title="spent")
         self.update(res)
 
 
@@ -71,7 +64,7 @@ class CountdownTimerComponent(Static, can_focus=True):
         return f"countdown_timer_container_{uuid4()}"
     
     @classmethod
-    def new_default(cls) -> CountdownTimerComponent:
+    def create(cls) -> CountdownTimerComponent:
         return cls.from_state(CountdownTimerState.new_default())
 
     @property
@@ -196,14 +189,13 @@ class CountdownTimerComponent(Static, can_focus=True):
         ti = self._set_edit_time_classes(editing=False)
         ti.value = ""
 
-    def _set_edit_time_classes(self, *, editing: bool):
+    def _set_edit_time_classes(self, *, editing: bool) -> TimeInput:
         self.query_one(CountdownTimerWidget).set_class(editing, "hidden")
         self.query_one(TotalTimeSpent).set_class(editing, "hidden")
-        ti = self.query_one(TimeInput)
-        ti.set_class(not editing, "hidden")
+        (ti := self.query_one(TimeInput)).set_class(not editing, "hidden")
         return ti
 
-    def _set_active(self, *, active: bool):
+    def _set_active(self, *, active: bool) -> None:
         self.query_one("#start").set_class(active, "hidden")
         self.query_one("#reset").set_class(active, "hidden")
         self.query_one("#stop").set_class(not active, "hidden")

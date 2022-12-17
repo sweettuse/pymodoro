@@ -47,7 +47,7 @@ class Pymodoro(App):
     ]
 
     def _create_new_timer(self) -> CountdownTimerComponent:
-        return CountdownTimerComponent.new_default()
+        return CountdownTimerComponent.create()
 
     def compose(self) -> ComposeResult:
         self.has_active_timer = False
