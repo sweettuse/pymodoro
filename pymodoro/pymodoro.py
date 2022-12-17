@@ -58,7 +58,6 @@ class Pymodoro(App):
         else:
             timers = (self._create_new_timer() for _ in range(4))
 
-        yield Header()
         yield GlobalTimerComponent()
         yield ConfigForm(classes="hidden")
         yield Container(*timers, id="timers")

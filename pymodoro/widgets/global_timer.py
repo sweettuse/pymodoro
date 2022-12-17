@@ -130,7 +130,6 @@ class GlobalTimerWidget(Static):
 
 class GlobalTimerComponent(Static):
     """display of currently selected/running timer"""
-
     def compose(self) -> ComposeResult:
         yield GlobalTimerWidget(expand=True)
 

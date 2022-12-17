@@ -9,10 +9,16 @@ Screen {
 
 GlobalTimerComponent {
   dock: top;
-  content-align: center middle;
+  content-align: left middle;
   layout: grid;
-  grid-size: 1 1;
-  height: auto;
+  /* grid-size: 1; */
+  /* the below is stupid - auto doesn't work anymore as of textual 0.6.0 */
+  /* height: auto;   */
+  height: 14;  
+}
+
+GlobalTimerWidget {
+    height: 14;
 }
 
 CountdownTimerComponent {
