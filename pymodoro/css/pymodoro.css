@@ -1,120 +1,109 @@
 $desc_color: blue;
 $linear_color: purple;
-$timer_width: 13;
+$timer_width: 16;
 $text_padding: 1 0 1 1;
 $element_height: 5;
 Screen {
-    layers: base sidebar config;
+  layers: base sidebar config;
 }
 
 GlobalTimerComponent {
-	dock: top;
-	content-align: center middle;
-	layout: grid;
-	grid-size: 3 1;
-	height: auto;
-}
-
-TotalTimeSpent {
-    width: 16;
-	content-align: center middle;
-    height: $element_height;
-    /* color: blue; */
-    /* background: grey; */
+  dock: top;
+  content-align: center middle;
+  layout: grid;
+  grid-size: 1 1;
+  height: auto;
 }
 
 CountdownTimerComponent {
-    layout: horizontal;
-    background: $boost;
-    height: 8;
-    padding: 1;
-    margin: 1;
-    /* dock: top; */
-    /* border: heavy round grey; */
-    overflow-y: auto;
-    /* overflow-x: scroll; */
-	/* content-align: center middle; */
-}
-
-CountdownTimerWidget {
-    width: $timer_width;
-    height: $element_height;
-    /* padding: 2; */
-    content-align: center middle;
+  layout: horizontal;
+  background: $boost;
+  height: 8;
+  padding: 1;
+  margin: 1;
+  /* dock: top; */
+  /* border: heavy round grey; */
+  overflow-y: auto;
+  /* overflow-x: scroll; */
+  /* content-align: center middle; */
 }
 
 CountdownTimerComponent:focus {
-    background: green;
+  background: green;
 }
 CountdownTimerComponent.active {
-    background: palevioletred;
+  background: palevioletred;
+}
+
+TimeGroup {
+  width: $timer_width;
+}
+
+TotalTimeSpent {
+  width: 16;
+  content-align: center middle;
+  height: 3;
+  /* color: blue; */
+  /* background: grey; */
+}
+
+CountdownTimerWidget {
+  width: $timer_width;
+  height: 3;
+  /* padding: 2; */
 }
 
 ConfigForm {
-
 }
 
-/* Footer {
-    height: 1;
-    overflow: auto;
-} */
-
 ConfigFields {
-    background: $panel;
-    layer: sidebar;
-    dock: right;
-    width: 50%;
-    layout: grid;
-    grid-size: 2;
-    grid-columns: 20 1fr;
-    padding: 1;
+  background: $panel;
+  layer: sidebar;
+  dock: right;
+  width: 50%;
+  layout: grid;
+  grid-size: 2;
+  grid-columns: 20 1fr;
+  padding: 1;
 }
 
 Button {
-    padding: 0;
-    margin: 1;
-    width: 12;
-    min-width: 4;
+  padding: 0;
+  margin: 1;
+  width: 12;
+  min-width: 4;
 }
 
 #linear {
-    height: $element_height;
-    border: round $linear_color;
-    width: 20;
-    padding: $text_padding;
+  height: $element_height;
+  border: round $linear_color;
+  width: 20;
+  padding: $text_padding;
 }
 
 #linear:focus {
-    border: tall $linear_color;
+  border: tall $linear_color;
 }
 
 #description {
-    height: $element_height;
-    border: round $desc_color;
-    width: 60;
-    padding: $text_padding;
+  height: $element_height;
+  border: round $desc_color;
+  width: 60;
+  padding: $text_padding;
 }
 
 #time_input {
-    width: $timer_width;
-    height: $element_height;
-    border: round $desc_color;
-    border: none;
-    padding: 2;
+  width: $timer_width;
+  height: $element_height;
+  border: round $desc_color;
+  border: none;
+  padding: 2;
 }
 
 #description:focus {
-    border: tall $desc_color;
+  border: tall $desc_color;
 }
 
 .hidden {
-    display: none;
+  display: none;
 }
-
-/*
-CountdownTimerWidget {
-    content-align: center middle;
-    height: 3;
-    layout: horizontal;
-
-} */

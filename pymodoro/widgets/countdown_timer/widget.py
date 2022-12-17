@@ -45,7 +45,9 @@ class _CountdownTimerMessage(Message):
     def component_id(self) -> str:
         from widgets.countdown_timer.component import CountdownTimerComponent
 
-        component = next(a for a in self.sender.ancestors if isinstance(a, CountdownTimerComponent))
+        component = next(
+            a for a in self.sender.ancestors if isinstance(a, CountdownTimerComponent)
+        )
         if component:
             return component.id
         return "unknown"
@@ -75,7 +77,11 @@ class CountdownTimerWidget(Static, can_focus=True):
         """indicate that widget has stopped or paused"""
 
         def __init__(
-            self, sender: MessageTarget, remaining: float, elapsed: float, total_elapsed: float
+            self,
+            sender: MessageTarget,
+            remaining: float,
+            elapsed: float,
+            total_elapsed: float,
         ):
             self.remaining = remaining
             self.elapsed = elapsed
@@ -96,7 +102,9 @@ class CountdownTimerWidget(Static, can_focus=True):
     class NewSecond(Message):
         """emit every time a second ticks"""
 
-        def __init__(self, sender: MessageTarget, remaining: float, elapsed: float) -> None:
+        def __init__(
+            self, sender: MessageTarget, remaining: float, elapsed: float
+        ) -> None:
             super().__init__(sender)
             self.remaining = remaining
             self.elapsed = elapsed
@@ -107,7 +115,9 @@ class CountdownTimerWidget(Static, can_focus=True):
 
     async def on_mount(self):
         self._refresh_timer = self.set_interval(1 / 60, self._update, pause=True)
-        self._refresh_global = self.set_interval(1 / 5, self._update_global_timer, pause=True)
+        self._refresh_global = self.set_interval(
+            1 / 5, self._update_global_timer, pause=True
+        )
         await self._update()
 
     def _pause_or_resume_timers(self, pause: bool):
@@ -150,8 +160,10 @@ class CountdownTimerWidget(Static, can_focus=True):
 
         hours_str = f"{hours:02,.0f}:" if hours else ""
 
-        text = Align(f"{hours_str}{minutes:02.0f}:{seconds:05.2f}", 'center', vertical='middle')
-        res = Panel(text, title='current')
+        text = Align(
+            f"{hours_str}{minutes:02.0f}:{seconds:05.2f}", "center", vertical="middle"
+        )
+        res = Panel(text, title="current")
         self.update(res)
 
     async def _update_global_timer(self):

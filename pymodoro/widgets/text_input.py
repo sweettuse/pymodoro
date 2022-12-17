@@ -75,21 +75,21 @@ class TimeInput(TextInput):
             await self.emit(self.NewTotalSeconds(self, new_seconds))
 
     def _to_seconds(self) -> Optional[float]:
-        if self.value.endswith("s"):
-            return int(self.value[:-1])
-        if self.value.endswith("s"):
-            return 60 * int(self.value[:-1])
-
-        fields = self.value.split(":")
-        if len(fields) > 3:
-            return None
-        
-        if len(fields) == 1:
-            return 60 * int(fields[0])
-
-        m = 1
-        res = 0.0
         with suppress(Exception):
+            if self.value.endswith("s"):
+                return int(self.value[:-1])
+            if self.value.endswith("s"):
+                return 60 * int(self.value[:-1])
+
+            fields = self.value.split(":")
+            if len(fields) > 3:
+                return None
+
+            if len(fields) == 1:
+                return 60 * int(fields[0])
+
+            m = 1
+            res = 0.0
             for f in reversed(fields):
                 res += m * float(f)
                 m *= 60

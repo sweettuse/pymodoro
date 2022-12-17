@@ -50,7 +50,8 @@ class GlobalTimerWidget(Static):
     remaining = reactive(0.0)
     last_seen = reactive(-1)
     color_str_override = reactive("")
-    face = var(Face.menlo)
+
+    font = var(Font(Face.menlo, 14))
     cur_timer: Reactive[Optional[Timer]] = var(None)
 
     @property
@@ -89,9 +90,6 @@ class GlobalTimerWidget(Static):
     # ==========================================================================
     # event handlers
     # ==========================================================================
-    def on_mount(self, event: events.Mount) -> None:
-        self.font = Font(self.face, 14)
-        self.remaining = 0
 
     def on_countdown_timer_widget_started(
         self,
@@ -141,9 +139,7 @@ class GlobalTimerComponent(Static):
     """display of currently selected/running timer"""
 
     def compose(self) -> ComposeResult:
-        yield Spacer()
         yield GlobalTimerWidget(expand=True)
-        yield Spacer()
 
 
 if __name__ == "__main__":

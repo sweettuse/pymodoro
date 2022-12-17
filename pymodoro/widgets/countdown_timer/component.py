@@ -18,12 +18,13 @@ from rich.segment import Segment
 from textual.reactive import reactive, var
 from textual.message import Message, MessageTarget
 from textual.widgets import Button, Header, Footer, Static, TextLog, Input
-from textual.containers import Horizontal
+from textual.containers import Horizontal, Vertical
 from textual.binding import Binding
 from pymodoro_state import CountdownTimerState, StateStore
 from widgets.text_input import LinearInput, TextInput, TimeInput
 
 from widgets.countdown_timer import CountdownTimer, CountdownTimerWidget
+
 
 class TotalTimeSpent(Static):
     spent_in_current_period = reactive(0.0)
@@ -37,19 +38,24 @@ class TotalTimeSpent(Static):
         if hours:
             hours_str = f"{hours:02,d}:"
 
-        text = Align(f"{hours_str}{minutes:02d}:{seconds:02d}", 'center', vertical='middle')
-        res = Panel(text, title='total spent')
+        text = Align(
+            f"{hours_str}{minutes:02d}:{seconds:02d}", "center", vertical="middle"
+        )
+        res = Panel(text, title="total spent")
         self.update(res)
-    
+
+
+class TimeGroup(Vertical):
+    ...
+
 
 class Caret(Static):
     active = reactive(False)
-    val = var(' ')
+    val = var(" ")
 
     def watch_active(self, active):
-        self.val = '> ' if active else '  '
-        self.update(Align(self.val, 'center', vertical='middle'))
-
+        self.val = "> " if active else "  "
+        self.update(Align(self.val, "center", vertical="middle"))
 
 
 class CountdownTimerComponent(Static, can_focus=True):
@@ -62,7 +68,7 @@ class CountdownTimerComponent(Static, can_focus=True):
     @property
     def is_active(self) -> bool:
         return self.has_class("active")
-    
+
     @property
     def focused_or_within(self) -> bool:
         return self.has_focus or self.has_pseudo_class("focus-within")
@@ -79,7 +85,7 @@ class CountdownTimerComponent(Static, can_focus=True):
 
     def _compose_new(self):
         self.state = CountdownTimerState(self.id)
-        tts = TotalTimeSpent(id='total')
+        tts = TotalTimeSpent(id="total")
         tts.prev_spent = self.state.total_seconds_completed
         yield Horizontal(
             # Caret(id='caret'),
@@ -87,14 +93,16 @@ class CountdownTimerComponent(Static, can_focus=True):
             TextInput(id="description", placeholder="description"),
             Button("start", id="start", variant="success"),
             Button("stop", id="stop", variant="error", classes="hidden"),
-            CountdownTimerWidget(CountdownTimer(25 * 60)),
-            TimeInput(id="time_input", classes="hidden"),
-            tts,
+            TimeGroup(
+                CountdownTimerWidget(CountdownTimer(25 * 60)),
+                TimeInput(id="time_input", classes="hidden"),
+                tts,
+            ),
             Button("reset", id="reset", variant="default"),
         )
 
     def _compose_from_state(self, state: CountdownTimerState):
-        tts = TotalTimeSpent(id='total')
+        tts = TotalTimeSpent(id="total")
         tts.prev_spent = self.state.total_seconds_completed
         yield Horizontal(
             # Caret(id='caret'),
@@ -102,11 +110,13 @@ class CountdownTimerComponent(Static, can_focus=True):
             TextInput.from_state(state.description_state),
             Button("start", id="start", variant="success"),
             Button("stop", id="stop", variant="error", classes="hidden"),
-            CountdownTimerWidget(
-                CountdownTimer.from_state(state.countdown_timer_state)
+            TimeGroup(
+                CountdownTimerWidget(
+                    CountdownTimer.from_state(state.countdown_timer_state)
+                ),
+                TimeInput.from_state(state.time_input_state),
+                tts,
             ),
-            TimeInput.from_state(state.time_input_state),
-            tts,
             Button("reset", id="reset", variant="default"),
         )
 
@@ -135,6 +145,9 @@ class CountdownTimerComponent(Static, can_focus=True):
             await ctw.stop()
         elif button_id == "reset":
             await ctw.reset()
+
+    async def stop(self):
+        await self.query_one(CountdownTimerWidget).stop()
 
     async def on_linear_input_new_title(self, event: LinearInput.NewTitle):
         """we received a new title from linear, so update the description with it"""
@@ -186,14 +199,19 @@ class CountdownTimerComponent(Static, can_focus=True):
         return self.state
 
     def enter_edit_time(self):
-        self.query_one(CountdownTimerWidget).add_class("hidden")
-        (ti := self.query_one(TimeInput)).remove_class("hidden")
+        ti = self._set_edit_time_classes(editing=True)
         ti.focus()
 
     def exit_edit_time(self):
-        self.query_one(CountdownTimerWidget).remove_class("hidden")
-        (ti := self.query_one(TimeInput)).add_class("hidden")
+        ti = self._set_edit_time_classes(editing=False)
         ti.value = ""
+
+    def _set_edit_time_classes(self, *, editing: bool):
+        self.query_one(CountdownTimerWidget).set_class(editing, "hidden")
+        self.query_one(TotalTimeSpent).set_class(editing, "hidden")
+        ti = self.query_one(TimeInput)
+        ti.set_class(not editing, "hidden")
+        return ti
 
     def _set_active(self, *, active: bool):
         self.query_one("#start").set_class(active, "hidden")

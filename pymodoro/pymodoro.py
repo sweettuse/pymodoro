@@ -122,8 +122,10 @@ class Pymodoro(App):
             button_id = "#start"
         ctc.query_one(button_id, Button).press()
 
-    def action_quit(self):
+    async def action_quit(self):
         """called by framework"""
+        for ctc in self.query(CountdownTimerComponent).filter(".active"):
+            await ctc.stop()
         self.action_dump_state()
         self.exit()
 
