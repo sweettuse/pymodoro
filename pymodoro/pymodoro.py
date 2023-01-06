@@ -123,7 +123,12 @@ class Pymodoro(App):
         self.exit()
 
     async def action_add_new_timer(self):
-        await self._add_timer(self._create_new_timer())
+        kw = {}
+        if focused := self._find_focused_or_focused_within():
+            idx, ctcs = focused
+            if idx is not None:
+                kw = dict(after=ctcs[idx])
+        await self._add_timer(self._create_new_timer(), **kw)
 
     async def action_undo_delete_timer(self):
         if not self._deleted:
