@@ -34,7 +34,7 @@ class TotalTimeSpent(Static):
 
     def watch_spent_in_current_period(self, new_amount):
         rem = int(new_amount + self.prev_spent)
-        text = Align(format_time(rem) , "center", vertical="middle")
+        text = Align(format_time(rem), "center", vertical="middle")
         res = Panel(text, title="spent")
         self.update(res)
 
@@ -52,7 +52,7 @@ class Caret(Static):
         self.update(Align(self.val, "center", vertical="middle"))
 
 
-class CountdownTimerComponent(Static, can_focus=True):
+class CountdownTimerComponent(Static, can_focus=True, can_focus_children=True):
     @classmethod
     def from_state(cls, state: CountdownTimerState) -> CountdownTimerComponent:
         res = cls(id=state.id)
@@ -62,7 +62,7 @@ class CountdownTimerComponent(Static, can_focus=True):
     @classmethod
     def new_id(cls) -> str:
         return f"countdown_timer_container_{uuid4()}"
-    
+
     @classmethod
     def create(cls) -> CountdownTimerComponent:
         return cls.from_state(CountdownTimerState.new_default())
@@ -131,10 +131,9 @@ class CountdownTimerComponent(Static, can_focus=True):
 
     async def stop(self):
         await self.query_one(CountdownTimerWidget).stop()
-    
+
     async def start(self):
         await self.query_one(CountdownTimerWidget).start()
-
 
     async def on_linear_input_new_title(self, event: LinearInput.NewTitle):
         """we received a new title from linear, so update the description with it"""

@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+
 def format_time(num_secs: int | float) -> str:
     """format time based on type to str"""
     if isinstance(num_secs, int):
@@ -16,5 +17,6 @@ def format_time(num_secs: int | float) -> str:
 
     minutes_fmt = "02d" if hours else "2d"
 
-
-    return f"{hours_str}{minutes:{minutes_fmt}}:{seconds:{seconds_fmt}}{decimal_padding}"
+    return (
+        f"{hours_str}{minutes:{minutes_fmt}}:{seconds:{seconds_fmt}}{decimal_padding}"
+    )

@@ -53,7 +53,7 @@ class GlobalTimerWidget(Static):
     color_str_override = reactive("")
 
     font = var(Font(Face.menlo, 14))
-    cur_timer: Reactive[Optional[Timer]] = var(None)
+    cur_timer: Optional[Timer] = var(None)
 
     @property
     def _remaining_str(self) -> str:
@@ -130,12 +130,6 @@ class GlobalTimerWidget(Static):
 
 class GlobalTimerComponent(Static):
     """display of currently selected/running timer"""
+
     def compose(self) -> ComposeResult:
         yield GlobalTimerWidget(expand=True)
-
-
-if __name__ == "__main__":
-    from rich import print
-
-    print(FONT_PATH)
-    # print(font.to_rich('sntahoeu'))

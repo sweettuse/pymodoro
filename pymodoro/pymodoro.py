@@ -12,7 +12,7 @@ from textual.scroll_view import ScrollView
 from rich.color import Color
 from rich.style import Style
 from rich.segment import Segment
-from textual.reactive import reactive
+from textual.reactive import reactive, var
 from textual.message import Message, MessageTarget
 from textual.widgets import Button, Header, Footer, Static, TextLog, Input
 from textual.containers import Horizontal
@@ -33,8 +33,8 @@ class Pymodoro(App):
     CSS_PATH = "css/pymodoro.css"
 
     BINDINGS = [
-        Binding("j", "focus_next", "focus/move next", key_display="j/J"),
-        Binding("k", "focus_prev", "focus/move prev", key_display="k/K"),
+        Binding("j", "focus_next_timer", "focus/move next", key_display="j/J"),
+        Binding("k", "focus_prev_timer", "focus/move prev", key_display="k/K"),
         Binding("e", "edit_time", "edit total time", key_display="e"),
         Binding("space", "start_or_stop", "start or stop", key_display="space"),
         Binding("A", "add_new_timer", "add timer", key_display="A"),
@@ -45,6 +45,8 @@ class Pymodoro(App):
         HiddenBinding("K", "move_up", "move widget up"),
         HiddenBinding("escape", "focus_container", "focus outer container"),
     ]
+
+    _currently_moving = var(False)
 
     def _create_new_timer(self) -> CountdownTimerComponent:
         return CountdownTimerComponent.create()
@@ -71,11 +73,11 @@ class Pymodoro(App):
         timers.extend(self._deleted)
         StateStore.dump(timers)
 
-    def action_focus_next(self):
+    def action_focus_next_timer(self):
         """set focus to next timer"""
         self._focus_ctc(1)
 
-    def action_focus_prev(self):
+    def action_focus_prev_timer(self):
         """set focus to previous timer"""
         self._focus_ctc(-1)
 
@@ -232,12 +234,16 @@ class Pymodoro(App):
             ctcs[0].focus()
             return
 
-        ctc = ctcs[(idx + offset) % len(ctcs)]
+        new_idx = min(len(ctcs) - 1, max(0, (idx + offset)))
+        ctc = ctcs[new_idx]
         ctc.focus()
         return ctc
 
     async def _move_timer(self, offset: int):
         """move timer container up or down in the list"""
+        if self._currently_moving:
+            return
+
         if offset not in {1, -1}:
             return
 
@@ -255,9 +261,10 @@ class Pymodoro(App):
         ctc = ctcs[idx]
         state = ctc.dump_state()
         if ctc.is_active:
-            ctc.query_one('#stop', Button).press()
+            ctc.query_one("#stop", Button).press()
         new_ctc = CountdownTimerComponent.from_state(state)
         kw = {"before" if offset == -1 else "after": ctcs[new_idx]}
+        self._currently_moving = True
         ctc.remove()
         await self._add_timer(new_ctc, **kw)
 
@@ -265,6 +272,7 @@ class Pymodoro(App):
         await self.query_one("#timers").mount(timer, **kw)
         timer.focus()
         timer.scroll_visible()
+        self.call_after_refresh(lambda: setattr(self, "_currently_moving", False))
         return timer
 
 

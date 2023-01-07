@@ -43,6 +43,10 @@ class _CountdownTimerMessage(Message):
         )
 
     @property
+    def name(self):
+        return type(self).__name__.lower()
+
+    @property
     def component_id(self) -> str:
         from widgets.countdown_timer.component import CountdownTimerComponent
 
