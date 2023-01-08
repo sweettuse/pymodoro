@@ -10,6 +10,7 @@ from textual.containers import Container
 from textual import events
 from textual.scroll_view import ScrollView
 from rich.color import Color
+from rich.console import RenderableType
 from rich.style import Style
 from rich.panel import Panel
 from rich.align import Align
@@ -17,7 +18,7 @@ from rich.segment import Segment
 from textual.reactive import reactive, var, Reactive
 from textual.timer import Timer
 from textual.message import Message, MessageTarget
-from textual.widgets import Button, Header, Footer, Static, TextLog, Input
+from textual.widgets import Button, Header, Footer, Static, TextLog, Input, Placeholder
 from textual.containers import Horizontal
 from textual.binding import Binding
 from utils import format_time
@@ -128,8 +129,13 @@ class GlobalTimerWidget(Static):
         self.cur_timer = None
 
 
+class DebugLog(TextLog):
+    pass
+
+
 class GlobalTimerComponent(Static):
     """display of currently selected/running timer"""
 
     def compose(self) -> ComposeResult:
-        yield GlobalTimerWidget(expand=True)
+        yield GlobalTimerWidget()
+        yield DebugLog(classes="debug")

@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import asyncio
+from datetime import datetime
 from functools import partial
 
 from typing import Any, Optional
@@ -17,6 +18,7 @@ from textual.message import Message, MessageTarget
 from textual.widgets import Button, Header, Footer, Static, TextLog, Input
 from textual.containers import Horizontal
 from textual.binding import Binding
+from pymodoro.widgets.global_timer import DebugLog
 from sound import play_sound
 from widgets.global_timer import GlobalTimerComponent, GlobalTimerWidget
 from widgets.configuration import ConfigForm
@@ -176,10 +178,12 @@ class Pymodoro(App):
         self, event: CountdownTimerWidget.Started
     ):
         self.has_active_timer = True
+        self._debug(event)
         await self._update_global_timer(event)
 
     async def on_countdown_timer_widget_stopped(self, event):
         self.has_active_timer = False
+        self._debug(event)
         await self._update_global_timer(event)
 
     async def on_countdown_timer_widget_new_second(
@@ -191,6 +195,7 @@ class Pymodoro(App):
     async def on_countdown_timer_widget_completed(
         self, event: CountdownTimerWidget.Completed
     ):
+        self._debug(event)
         await self._update_global_timer(event)
         play_sound.play()
 
@@ -274,6 +279,10 @@ class Pymodoro(App):
         timer.scroll_visible()
         self.call_after_refresh(lambda: setattr(self, "_currently_moving", False))
         return timer
+
+    def _debug(self, msg: Any):
+        now = datetime.now().replace(microsecond=0)
+        self.query_one(DebugLog).write(f"{now} - {msg}")
 
 
 if __name__ == "__main__":
