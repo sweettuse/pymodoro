@@ -147,6 +147,8 @@ class Pymodoro(App):
         await self._add_timer(CountdownTimerComponent.from_state(state))
 
     async def action_search(self):
+        sb = self.query_one(SearchBox)
+        sb.value = ''
         self.query_one(SearchBox).focus()
 
     def action_delete_selected_timer(self):
