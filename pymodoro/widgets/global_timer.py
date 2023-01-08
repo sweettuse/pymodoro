@@ -36,19 +36,14 @@ class Spacer(Static):
     ...
 
 
-class GlobalTimerApp(App):
-    CSS_PATH = "../css/pymodoro.css"
-
-    def compose(self) -> ComposeResult:
-        yield GlobalTimerComponent()
-
-
 INACTIVE_COLOR_STR = "grey37"
 ACTIVE_COLOR_STR = "yellow"
 COMPLETED_COLOR_STR = "light_cyan3"
 
 
 class GlobalTimerWidget(Static):
+    """display of currently selected/running timer"""
+
     color_str = reactive(INACTIVE_COLOR_STR)
     remaining = reactive(0.0)
     last_seen = reactive(-1)
@@ -115,13 +110,15 @@ class GlobalTimerWidget(Static):
         event: CountdownTimerWidget.Completed,
     ):
         event.stop()
-        self._override_color(COMPLETED_COLOR_STR)
+        self._override_color_temporarily(COMPLETED_COLOR_STR)
 
-    def _override_color(self, color_str):
+    def _override_color_temporarily(self, color_str, num_secs=6):
+        """temporarily change the color of the global timer"""
         self.color_str_override = color_str
-        self.cur_timer = self.set_timer(6, self._clear_color_override)
+        self.cur_timer = self.set_timer(num_secs, self._clear_color_override)
 
     def _clear_color_override(self):
+        """clear the overridden color"""
         self.color_str_override = ""
         if not self.cur_timer:
             return
@@ -131,13 +128,14 @@ class GlobalTimerWidget(Static):
 
 
 class DebugLog(TextLog):
-    pass
+    """text log to which you can log useful debug info"""
 
 
 DL = DebugLog(classes="debug")
 
 
 class SearchBox(Input):
+    """search/filter timers here"""
     class Search(Message):
         def __init__(self, sender: MessageTarget, search_str: str) -> None:
             super().__init__(sender)
@@ -148,9 +146,17 @@ class SearchBox(Input):
 
 
 class GlobalTimerComponent(Static):
-    """display of currently selected/running timer"""
-
+    """top component"""
     def compose(self) -> ComposeResult:
         yield GlobalTimerWidget()
         yield DL
         yield SearchBox(placeholder="search")
+
+
+class GlobalTimerApp(App):
+    """for debugging purposes"""
+
+    CSS_PATH = "../css/pymodoro.css"
+
+    def compose(self) -> ComposeResult:
+        yield GlobalTimerComponent()

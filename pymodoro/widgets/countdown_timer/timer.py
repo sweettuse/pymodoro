@@ -49,10 +49,12 @@ class CountdownTimer:
         self.period = Period()
 
     def dump_state(self) -> dict:
+        """dump state to a dict"""
         return {k: getattr(self, k) for k in ("initial_seconds", "total_elapsed")}
 
     @classmethod
     def from_state(cls, state_dict: dict[str, Any]):
+        """load a timer from state"""
         res = cls()
         for k, v in state_dict.items():
             setattr(res, k, v)
@@ -82,6 +84,7 @@ class CountdownTimer:
 
     @property
     def is_active(self) -> bool:
+        """whether this timer is currently running"""
         return self._active
 
     @property

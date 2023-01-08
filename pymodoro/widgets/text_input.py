@@ -12,7 +12,7 @@ from linear.api import IssueQuery
 
 
 class TextInput(Input):
-    """text input with some state management help"""
+    """text input with some state management functionality"""
 
     state_attrs: tuple[str, ...] = "id", "value", "placeholder", "password"
 
@@ -31,6 +31,9 @@ class TextInput(Input):
 
 
 class LinearInput(TextInput):
+    """get description from linear and update description in CTC;
+    link to the issue in linear
+    """
     url_format = "https://linear.app/tuse/issue/{}"
 
     class NewTitle(Message):
@@ -39,6 +42,7 @@ class LinearInput(TextInput):
             self.title = title
 
     async def on_key(self, event: events.Key):
+        """get the issue"""
         if event.key != "enter":
             return
 
@@ -62,9 +66,10 @@ class LinearInput(TextInput):
 
 
 class TimeInput(TextInput):
-    """enter new time for countdown timer"""
+    """enter new remaining time for countdown timer"""
 
     class NewTotalSeconds(Message):
+        """emit when the total remaining time has changed"""
         def __init__(self, sender: MessageTarget, new_total_seconds: float):
             super().__init__(sender)
             self.total_seconds = new_total_seconds
@@ -74,10 +79,17 @@ class TimeInput(TextInput):
             await self.emit(self.NewTotalSeconds(self, new_seconds))
 
     def _to_seconds(self) -> Optional[float]:
+        """convert value to seconds
+        
+        by default, interpret value as minutes.
+        if suffixed with `s`, interpret as seconds
+        can also parse something like:
+            "[hours]:[minutes]:seconds"
+        """
         with suppress(Exception):
             if self.value.endswith("s"):
                 return int(self.value[:-1])
-            if self.value.endswith("s"):
+            if self.value.endswith("m"):
                 return 60 * int(self.value[:-1])
 
             fields = self.value.split(":")

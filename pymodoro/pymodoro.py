@@ -45,7 +45,7 @@ class Pymodoro(App):
         Binding("A", "add_new_timer", "add timer", key_display="A"),
         Binding("D", "delete_selected_timer", "del timer", key_display="D"),
         Binding("U", "undo_delete_timer", "undo del", key_display="U"),
-        Binding("/", "search", "search", key_display="/"),
+        Binding("/", "focus_search", "search", key_display="/"),
         HiddenBinding("d", "dump_state", "dump state"),
         HiddenBinding("k", "focus_prev_timer", "focus/move prev"),
         HiddenBinding("J", "move_down", "move widget down"),
@@ -76,6 +76,7 @@ class Pymodoro(App):
     # actions
     # ==========================================================================
     def action_dump_state(self):
+        """dump state out to state store"""
         timers = [ctc.dump_state() for ctc in self.query(CountdownTimerComponent)]
         timers.extend(self._deleted)
         StateStore.dump(timers)
@@ -97,11 +98,12 @@ class Pymodoro(App):
         await self._move_timer(offset=-1)
 
     def action_focus_container(self):
-        """on hitting escape, focus the current container"""
+        """focus the current container"""
         if ctc := self._focus_ctc(0):
             ctc.exit_edit_time()
 
     def action_edit_time(self):
+        """change to edit remaining time"""
         if not (focused := self._find_focused_or_focused_within()):
             return
 
@@ -110,6 +112,7 @@ class Pymodoro(App):
         ctc.enter_edit_time()
 
     def action_start_or_stop(self):
+        """start or stop a timer"""
         if not (focused := self._find_focused_or_focused_within()):
             return
 
@@ -132,6 +135,7 @@ class Pymodoro(App):
         self.exit()
 
     async def action_add_new_timer(self):
+        """add a new timer below the current focused one"""
         kw = {}
         if focused := self._find_focused_or_focused_within():
             idx, ctcs = focused
@@ -146,12 +150,14 @@ class Pymodoro(App):
         state = self._deleted.pop()
         await self._add_timer(CountdownTimerComponent.from_state(state))
 
-    async def action_search(self):
+    def action_focus_search(self):
+        """set focus to search box and clear the current value"""
         sb = self.query_one(SearchBox)
         sb.value = ''
         self.query_one(SearchBox).focus()
 
     def action_delete_selected_timer(self):
+        """rm the currently focused timer if there is one"""
         if not (focused := self._find_focused_or_focused_within()):
             return
 
@@ -187,11 +193,13 @@ class Pymodoro(App):
     async def on_countdown_timer_widget_started(
         self, event: CountdownTimerWidget.Started
     ):
+        """start the global timer"""
         self.has_active_timer = True
         self._debug(event)
         await self._update_global_timer(event)
 
     async def on_countdown_timer_widget_stopped(self, event):
+        """stop the global timer"""
         self.has_active_timer = False
         self._debug(event)
         await self._update_global_timer(event)
@@ -200,16 +208,19 @@ class Pymodoro(App):
         self,
         event: CountdownTimerWidget.NewSecond,
     ):
+        """tick the global timer"""
         await self._update_global_timer(event)
 
     async def on_countdown_timer_widget_completed(
         self, event: CountdownTimerWidget.Completed
     ):
+        """let the global timer know the timer has completed and play a sound"""
         self._debug(event)
         await self._update_global_timer(event)
         play_sound.play()
 
     async def on_search_box_search(self, event: SearchBox.Search):
+        """filter results whenever the value of the search box changes"""
         self._debug(event.search_str)
         await self._filter_based_on_search(event.search_str)
 
@@ -288,6 +299,7 @@ class Pymodoro(App):
         await self._add_timer(new_ctc, **kw)
 
     async def _add_timer(self, timer: CountdownTimerComponent, **kw):
+        """add a timer to existing timers"""
         await self.query_one("#timers").mount(timer, **kw)
         timer.focus()
         timer.scroll_visible()
@@ -295,10 +307,15 @@ class Pymodoro(App):
         return timer
 
     def _debug(self, msg: Any):
+        """log to the DebugLog object
+        
+        needs to be enabled in `pymodoro.css` - comment out `display: none`
+        """
         now = datetime.now().replace(microsecond=0).time()
         self.query_one(DebugLog).write(f"{now} - {msg}")
 
     async def _filter_based_on_search(self, search_str: str):
+        """hide classes that don't match the filter"""
         for ctc in self.query(CountdownTimerComponent):
             ctc.set_class(not ctc.matches_search(search_str), "hidden")
 

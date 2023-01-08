@@ -101,6 +101,7 @@ class CountdownTimerState:
     def from_countdown_timer_component(
         cls, ctc: CountdownTimerComponent
     ) -> CountdownTimerState:
+        """convert a CountdownTimerComponent to its state"""
         from widgets.text_input import TextInput
         from widgets.countdown_timer import CountdownTimerWidget
 

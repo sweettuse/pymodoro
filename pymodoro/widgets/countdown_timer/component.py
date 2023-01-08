@@ -53,6 +53,10 @@ class Caret(Static):
 
 
 class CountdownTimerComponent(Static, can_focus=True, can_focus_children=True):
+    """wrap all the widgets that represent a "timer"
+    
+    things like the linear issue, description, remaining, spent, etc
+    """
     @classmethod
     def from_state(cls, state: CountdownTimerState) -> CountdownTimerComponent:
         res = cls(id=state.id)
@@ -69,10 +73,12 @@ class CountdownTimerComponent(Static, can_focus=True, can_focus_children=True):
 
     @property
     def is_active(self) -> bool:
+        """is this timer currently running"""
         return self.has_class("active")
 
     @property
     def focused_or_within(self) -> bool:
+        """whether this component or one if its children has focus"""
         return self.has_focus or self.has_pseudo_class("focus-within")
 
     @property
@@ -103,6 +109,14 @@ class CountdownTimerComponent(Static, can_focus=True, can_focus_children=True):
             Button("reset", id="reset", variant="default"),
         )
 
+    async def start(self):
+        """start child widget"""
+        await self.query_one(CountdownTimerWidget).start()
+
+    async def stop(self):
+        """stop child widget"""
+        await self.query_one(CountdownTimerWidget).stop()
+
     # ==========================================================================
     # actions
     # ==========================================================================
@@ -129,12 +143,6 @@ class CountdownTimerComponent(Static, can_focus=True, can_focus_children=True):
         elif button_id == "reset":
             await ctw.reset()
 
-    async def stop(self):
-        await self.query_one(CountdownTimerWidget).stop()
-
-    async def start(self):
-        await self.query_one(CountdownTimerWidget).start()
-
     async def on_linear_input_new_title(self, event: LinearInput.NewTitle):
         """we received a new title from linear, so update the description with it"""
         desc = self.query_one("#description", TextInput)
@@ -143,11 +151,13 @@ class CountdownTimerComponent(Static, can_focus=True, can_focus_children=True):
     async def on_countdown_timer_widget_started(
         self, event: CountdownTimerWidget.Started
     ):
+        """when the child widget is started, set this as active"""
         self._set_active(active=True)
 
     async def on_countdown_timer_widget_stopped(
         self, event: CountdownTimerWidget.Stopped
     ):
+        """deactivate timer and relevant time spent fields"""
         self.log(f"{event.sender} timer stopped")
         self.state.total_seconds_completed += event.elapsed
         tts = self.query_one(TotalTimeSpent)
@@ -158,6 +168,7 @@ class CountdownTimerComponent(Static, can_focus=True, can_focus_children=True):
     async def on_countdown_timer_widget_completed(
         self, event: CountdownTimerWidget.Completed
     ):
+        """deactivate timer on completion"""
         self.log(f"{event.sender} timer completed")
         self.state.num_pomodoros_completed += 1
         self._set_active(active=False)
@@ -166,9 +177,11 @@ class CountdownTimerComponent(Static, can_focus=True, can_focus_children=True):
         self,
         event: CountdownTimerWidget.NewSecond,
     ):
+        """update total time spent with how long this current timer has been active"""
         self.query_one(TotalTimeSpent).spent_in_current_period = event.elapsed
 
     async def on_time_input_new_total_seconds(self, msg: TimeInput.NewTotalSeconds):
+        """handle when amount remaining is changed"""
         ctw = self.query_one(CountdownTimerWidget)
         ctw.ct.initial_seconds = msg.total_seconds
         await ctw.reset()
@@ -185,14 +198,17 @@ class CountdownTimerComponent(Static, can_focus=True, can_focus_children=True):
         return self.state
 
     def enter_edit_time(self):
+        """called to allow changing of remaining time"""
         ti = self._set_edit_time_classes(editing=True)
         ti.focus()
 
     def exit_edit_time(self):
+        """called when done editing remaining time"""
         ti = self._set_edit_time_classes(editing=False)
         ti.value = ""
 
     def matches_search(self, search_str: str) -> bool:
+        """whether this component matches the search str"""
         if not search_str:
             return True
 
@@ -202,12 +218,14 @@ class CountdownTimerComponent(Static, can_focus=True, can_focus_children=True):
         )
 
     def _set_edit_time_classes(self, *, editing: bool) -> TimeInput:
+        """hide/show relevant widgets when editing remaining time"""
         self.query_one(CountdownTimerWidget).set_class(editing, "hidden")
         self.query_one(TotalTimeSpent).set_class(editing, "hidden")
         (ti := self.query_one(TimeInput)).set_class(not editing, "hidden")
         return ti
 
     def _set_active(self, *, active: bool) -> None:
+        """show/hide relevant buttons depending on whether this timer is running"""
         self.query_one("#start").set_class(active, "hidden")
         self.query_one("#reset").set_class(active, "hidden")
         self.query_one("#stop").set_class(not active, "hidden")

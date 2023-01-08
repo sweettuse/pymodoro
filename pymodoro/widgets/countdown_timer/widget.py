@@ -44,10 +44,12 @@ class _CountdownTimerMessage(Message):
 
     @property
     def name(self):
+        """lowercase class name"""
         return type(self).__name__.lower()
 
     @property
     def component_id(self) -> str:
+        """get the related ctc's id"""
         from widgets.countdown_timer.component import CountdownTimerComponent
 
         component = next(
@@ -105,7 +107,7 @@ class CountdownTimerWidget(Static, can_focus=True):
         """indicate that pomodoro has completed"""
 
     class NewSecond(Message):
-        """emit every time a second ticks"""
+        """emit the current amount remaining/elapsed"""
 
         def __init__(
             self, sender: MessageTarget, remaining: float, elapsed: float
@@ -132,6 +134,7 @@ class CountdownTimerWidget(Static, can_focus=True):
             getattr(fn, method)()
 
     async def start(self):
+        """start a pomodoro"""
         remaining = self.ct.remaining
         self._completion_sent = False
         if not self.ct.start():
@@ -140,6 +143,7 @@ class CountdownTimerWidget(Static, can_focus=True):
         await self.emit(self.Started(self, remaining))
 
     async def stop(self):
+        """stop a pomodoro"""
         if not self.ct.is_active:
             return 0.0
         self._pause_or_resume_timers(pause=True)
@@ -157,6 +161,10 @@ class CountdownTimerWidget(Static, can_focus=True):
         await self._update()
 
     async def _update(self):
+        """update display
+        
+        if complete, stop recurring function calls
+        """
         if self.ct.is_active and not self.ct.remaining:
             await self.stop()
 
@@ -165,4 +173,5 @@ class CountdownTimerWidget(Static, can_focus=True):
         self.update(res)
 
     async def _update_global_timer(self):
+        """let the global timer know how much is remaining"""
         await self.emit(self.NewSecond(self, self.ct.remaining, self.ct.period.elapsed))
