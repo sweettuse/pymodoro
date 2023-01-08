@@ -3,6 +3,7 @@ $linear_color: purple;
 $timer_width: 16;
 $text_padding: 1 0 1 1;
 $element_height: 5;
+
 Screen {
   layers: base sidebar config;
 }
@@ -11,8 +12,8 @@ GlobalTimerComponent {
   dock: top;
   /* content-align: left middle; */
   layout: grid;
-  grid-size: 2 1;
-  grid-columns: 48 1fr;
+  grid-size: 3 1;
+  grid-columns: 48 1fr 1fr;
   /* the below is stupid - auto doesn't work anymore as of textual 0.6.0 */
   /* height: auto;   */
   height: 14;  
@@ -22,10 +23,17 @@ GlobalTimerWidget {
     height: 100%;
 }
 
+SearchBox {
+  height: 3;
+  margin-top: 11;
+  content-align: right bottom;
+  border: solid darkolivegreen;
+}
+
 .debug {
   height: 100%;
   border: solid darkolivegreen;
-  /* display: none; */
+  display: none;
 }
 
 CountdownTimerComponent {

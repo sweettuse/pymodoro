@@ -18,9 +18,13 @@ from textual.message import Message, MessageTarget
 from textual.widgets import Button, Header, Footer, Static, TextLog, Input
 from textual.containers import Horizontal
 from textual.binding import Binding
-from pymodoro.widgets.global_timer import DebugLog
 from sound import play_sound
-from widgets.global_timer import GlobalTimerComponent, GlobalTimerWidget
+from widgets.global_timer import (
+    GlobalTimerComponent,
+    GlobalTimerWidget,
+    DebugLog,
+    SearchBox,
+)
 from widgets.configuration import ConfigForm
 from widgets.countdown_timer import CountdownTimerComponent, CountdownTimerWidget
 from pymodoro_state import StateStore, CountdownTimerState
@@ -35,14 +39,15 @@ class Pymodoro(App):
     CSS_PATH = "css/pymodoro.css"
 
     BINDINGS = [
-        Binding("j", "focus_next_timer", "focus/move next", key_display="j/J"),
-        Binding("k", "focus_prev_timer", "focus/move prev", key_display="k/K"),
-        Binding("e", "edit_time", "edit total time", key_display="e"),
+        Binding("j", "focus_next_timer", "focus/move prev/next", key_display="j/J/k/K"),
+        Binding("e", "edit_time", "edit remaining", key_display="e"),
         Binding("space", "start_or_stop", "start or stop", key_display="space"),
         Binding("A", "add_new_timer", "add timer", key_display="A"),
         Binding("D", "delete_selected_timer", "del timer", key_display="D"),
         Binding("U", "undo_delete_timer", "undo del", key_display="U"),
+        Binding("/", "search", "search", key_display="/"),
         HiddenBinding("d", "dump_state", "dump state"),
+        HiddenBinding("k", "focus_prev_timer", "focus/move prev"),
         HiddenBinding("J", "move_down", "move widget down"),
         HiddenBinding("K", "move_up", "move widget up"),
         HiddenBinding("escape", "focus_container", "focus outer container"),
@@ -141,6 +146,9 @@ class Pymodoro(App):
         state = self._deleted.pop()
         await self._add_timer(CountdownTimerComponent.from_state(state))
 
+    async def action_search(self):
+        self.query_one(SearchBox).focus()
+
     def action_delete_selected_timer(self):
         if not (focused := self._find_focused_or_focused_within()):
             return
@@ -199,6 +207,10 @@ class Pymodoro(App):
         await self._update_global_timer(event)
         play_sound.play()
 
+    async def on_search_box_search(self, event: SearchBox.Search):
+        self._debug(event.search_str)
+        await self._filter_based_on_search(event.search_str)
+
     async def _update_global_timer(self, event):
         """forward message on to global timer"""
         event.stop()
@@ -217,7 +229,7 @@ class Pymodoro(App):
         if exists, return its idx and a list of all CountdownTimerComponents
         else, return None
         """
-        if not (ctcs := list(self.query(CountdownTimerComponent))):
+        if not (ctcs := list(self.query(CountdownTimerComponent).exclude(".hidden"))):
             return
 
         for i, ctc in enumerate(ctcs):
@@ -281,8 +293,12 @@ class Pymodoro(App):
         return timer
 
     def _debug(self, msg: Any):
-        now = datetime.now().replace(microsecond=0)
+        now = datetime.now().replace(microsecond=0).time()
         self.query_one(DebugLog).write(f"{now} - {msg}")
+
+    async def _filter_based_on_search(self, search_str: str):
+        for ctc in self.query(CountdownTimerComponent):
+            ctc.set_class(not ctc.matches_search(search_str), "hidden")
 
 
 if __name__ == "__main__":

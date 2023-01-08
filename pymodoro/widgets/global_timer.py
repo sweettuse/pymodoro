@@ -21,6 +21,7 @@ from textual.message import Message, MessageTarget
 from textual.widgets import Button, Header, Footer, Static, TextLog, Input, Placeholder
 from textual.containers import Horizontal
 from textual.binding import Binding
+from widgets.text_input_orig import TextInputOrig
 from utils import format_time
 from widgets.countdown_timer.widget import CountdownTimerWidget
 
@@ -133,9 +134,23 @@ class DebugLog(TextLog):
     pass
 
 
+DL = DebugLog(classes="debug")
+
+
+class SearchBox(Input):
+    class Search(Message):
+        def __init__(self, sender: MessageTarget, search_str: str) -> None:
+            super().__init__(sender)
+            self.search_str = search_str
+
+    async def watch_value(self, value):
+        await self.emit(self.Search(self, value))
+
+
 class GlobalTimerComponent(Static):
     """display of currently selected/running timer"""
 
     def compose(self) -> ComposeResult:
         yield GlobalTimerWidget()
-        yield DebugLog(classes="debug")
+        yield DL
+        yield SearchBox(placeholder="search")

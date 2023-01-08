@@ -192,6 +192,15 @@ class CountdownTimerComponent(Static, can_focus=True, can_focus_children=True):
         ti = self._set_edit_time_classes(editing=False)
         ti.value = ""
 
+    def matches_search(self, search_str: str) -> bool:
+        if not search_str:
+            return True
+
+        return (
+            search_str in self.query_one("#linear", TextInput).value
+            or search_str in self.query_one("#description", TextInput).value
+        )
+
     def _set_edit_time_classes(self, *, editing: bool) -> TimeInput:
         self.query_one(CountdownTimerWidget).set_class(editing, "hidden")
         self.query_one(TotalTimeSpent).set_class(editing, "hidden")
