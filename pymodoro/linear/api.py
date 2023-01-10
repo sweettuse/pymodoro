@@ -15,6 +15,7 @@ post = partial(requests.post, "https://api.linear.app/graphql", headers=header)
 
 class IssueQuery:
     """query for the title of the issue in linear"""
+
     def __init__(self, issue_name):
         self.issue_name = issue_name.upper()
 

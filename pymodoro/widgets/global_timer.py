@@ -136,6 +136,7 @@ DL = DebugLog(classes="debug")
 
 class SearchBox(Input):
     """search/filter timers here"""
+
     class Search(Message):
         def __init__(self, sender: MessageTarget, search_str: str) -> None:
             super().__init__(sender)
@@ -147,6 +148,7 @@ class SearchBox(Input):
 
 class GlobalTimerComponent(Static):
     """top component"""
+
     def compose(self) -> ComposeResult:
         yield GlobalTimerWidget()
         yield DL

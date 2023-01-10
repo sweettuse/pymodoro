@@ -23,7 +23,7 @@ from textual.containers import Horizontal, Vertical
 from textual.binding import Binding
 from utils import format_time
 from pymodoro_state import CountdownTimerState, StateStore
-from widgets.text_input import LinearInput, TextInput, TimeInput
+from widgets.text_input import LinearInput, TextInput, TimeInput, DescriptionInput
 
 from widgets.countdown_timer import CountdownTimer, CountdownTimerWidget
 
@@ -54,9 +54,10 @@ class Caret(Static):
 
 class CountdownTimerComponent(Static, can_focus=True, can_focus_children=True):
     """wrap all the widgets that represent a "timer"
-    
+
     things like the linear issue, description, remaining, spent, etc
     """
+
     @classmethod
     def from_state(cls, state: CountdownTimerState) -> CountdownTimerComponent:
         res = cls(id=state.id)
@@ -96,7 +97,7 @@ class CountdownTimerComponent(Static, can_focus=True, can_focus_children=True):
         yield Horizontal(
             # Caret(id='caret'),
             LinearInput.from_state(state.linear_state),
-            TextInput.from_state(state.description_state),
+            DescriptionInput.from_state(state.description_state),
             Button("start", id="start", variant="success"),
             Button("stop", id="stop", variant="error", classes="hidden"),
             TimeGroup(

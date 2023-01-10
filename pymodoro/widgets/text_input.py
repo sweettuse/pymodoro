@@ -29,11 +29,24 @@ class TextInput(Input):
         res.add_class(*classes)
         return res
 
+    class ValueAfterBlur(Message):
+        def __init__(self, sender: MessageTarget, value: str):
+            super().__init__(sender)
+            self.value = value
+
+    async def on_blur(self, _):
+        await self.emit(self.ValueAfterBlur(self, self.value))
+
+
+class DescriptionInput(TextInput):
+    """class for the description input box"""
+
 
 class LinearInput(TextInput):
     """get description from linear and update description in CTC;
     link to the issue in linear
     """
+
     url_format = "https://linear.app/tuse/issue/{}"
 
     class NewTitle(Message):
@@ -42,7 +55,7 @@ class LinearInput(TextInput):
             self.title = title
 
     async def on_key(self, event: events.Key):
-        """get the issue"""
+        """get the issue and emit event if it has a matching title in linear"""
         if event.key != "enter":
             return
 
@@ -70,6 +83,7 @@ class TimeInput(TextInput):
 
     class NewTotalSeconds(Message):
         """emit when the total remaining time has changed"""
+
         def __init__(self, sender: MessageTarget, new_total_seconds: float):
             super().__init__(sender)
             self.total_seconds = new_total_seconds
@@ -80,7 +94,7 @@ class TimeInput(TextInput):
 
     def _to_seconds(self) -> Optional[float]:
         """convert value to seconds
-        
+
         by default, interpret value as minutes.
         if suffixed with `s`, interpret as seconds
         can also parse something like:

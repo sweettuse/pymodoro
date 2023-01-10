@@ -162,7 +162,7 @@ class CountdownTimerWidget(Static, can_focus=True):
 
     async def _update(self):
         """update display
-        
+
         if complete, stop recurring function calls
         """
         if self.ct.is_active and not self.ct.remaining:
