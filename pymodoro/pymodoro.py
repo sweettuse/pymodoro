@@ -50,6 +50,7 @@ class Pymodoro(App):
         Binding("D", "delete_selected_timer", "del timer", key_display="D"),
         Binding("U", "undo_delete_timer", "undo del", key_display="U"),
         Binding("/", "focus_search", "search", key_display="/"),
+        Binding("r", "reset", "reset", key_display="r"),
         HiddenBinding("d", "dump_state", "dump state"),
         HiddenBinding("k", "focus_prev_timer", "focus/move prev"),
         HiddenBinding("J", "move_down", "move widget down"),
@@ -87,9 +88,7 @@ class Pymodoro(App):
     # ==========================================================================
     def action_dump_state(self):
         """dump state out to state store"""
-        active_states = [
-            ctc.dump_state() for ctc in self.query(CountdownTimerComponent)
-        ]
+        active_states = [ctc.dump_state() for ctc in self.query(CountdownTimerComponent)]
         # add active_states twice, first to ensure proper ordering, second to ensure proper data
         states = [
             active_states,
@@ -130,7 +129,7 @@ class Pymodoro(App):
         ctc = ctcs[idx or 0]
         ctc.enter_edit_time()
 
-    def action_start_or_stop(self):
+    async def action_start_or_stop(self):
         """start or stop a timer"""
         if not (focused := self._find_focused_or_focused_within()):
             return
@@ -138,13 +137,13 @@ class Pymodoro(App):
         idx, ctcs = focused
         ctc = ctcs[idx or 0]
         if ctc.is_active:
-            button_id = "#stop"
+            fn_name = "stop"
         else:
             if self.has_active_timer:
                 # can't have 2 timers running concurrently
                 return
-            button_id = "#start"
-        ctc.query_one(button_id, Button).press()
+            fn_name = "start"
+        await getattr(ctc, fn_name)()
 
     async def action_quit(self):
         """called by framework"""
@@ -173,7 +172,7 @@ class Pymodoro(App):
         """set focus to search box and clear the current value"""
         sb = self.query_one(SearchBox)
         sb.value = ""
-        self.query_one(SearchBox).focus()
+        sb.focus()
 
     def action_delete_selected_timer(self):
         """rm the currently focused timer if there is one"""
@@ -201,6 +200,15 @@ class Pymodoro(App):
         if to_focus:
             to_focus.focus()
 
+    async def action_reset(self):
+        if not (focused := self._find_focused_or_focused_within()):
+            return
+
+        idx, ctcs = focused
+        ctc = ctcs[idx or 0]
+        await ctc.stop()
+        await ctc.reset()
+
     # ==========================================================================
     # event handlers
     # ==========================================================================
@@ -209,9 +217,7 @@ class Pymodoro(App):
         """the total time for a pomodoro has been updated"""
         self._focus_ctc(0)
 
-    async def on_countdown_timer_widget_started(
-        self, event: CountdownTimerWidget.Started
-    ):
+    async def on_countdown_timer_widget_started(self, event: CountdownTimerWidget.Started):
         """start the global timer"""
         self.has_active_timer = True
         self._debug(event)
@@ -230,9 +236,7 @@ class Pymodoro(App):
         """tick the global timer"""
         await self._update_global_timer(event)
 
-    async def on_countdown_timer_widget_completed(
-        self, event: CountdownTimerWidget.Completed
-    ):
+    async def on_countdown_timer_widget_completed(self, event: CountdownTimerWidget.Completed):
         """let the global timer know the timer has completed and play a sound"""
         self._debug(event)
         await self._update_global_timer(event)
@@ -249,6 +253,7 @@ class Pymodoro(App):
 
         if it does, replace this one with the previously deleted one
         """
+        self._debug(f"blur: {event.value}")
         if not (focused := self._find_focused_or_focused_within()):
             return
 
@@ -256,7 +261,7 @@ class Pymodoro(App):
         if idx is None:
             return
 
-        if not (state := self._find_matching_deleted_timer(event)):
+        if not (state := (await self._find_matching_timer(event))):
             return
 
         state.status = "in_progress"
@@ -338,8 +343,7 @@ class Pymodoro(App):
 
         ctc = ctcs[idx]
         state = ctc.dump_state()
-        if ctc.is_active:
-            ctc.query_one("#stop", Button).press()
+        await ctc.stop()
         new_ctc = CountdownTimerComponent.from_state(state)
         kw = {"before" if offset == -1 else "after": ctcs[new_idx]}
         self._currently_moving = True
@@ -367,12 +371,27 @@ class Pymodoro(App):
         for ctc in self.query(CountdownTimerComponent):
             ctc.set_class(not ctc.matches_search(search_str), "hidden")
 
-    def _find_matching_deleted_timer(
+    async def _find_matching_timer(
         self, event: TextInput.ValueAfterBlur
     ) -> Optional[CountdownTimerState]:
-        """find previously deleted matching timer if exists"""
+        """find a matching timer based on the value in the recently blurred field
 
-        def _helper():
+        return its state if found
+        otherwise, return None
+        """
+        if not event.value:
+            return None
+
+        event_value_lower = event.value.lower()
+        event_ctc = event.ctc
+
+        def _match(value) -> bool:
+            """whether value case insensitive equals the new event.value"""
+            if not value:
+                return False
+            return value.lower() == event_value_lower
+
+        async def _find_matching() -> Optional[CountdownTimerState]:
             if isinstance(event.sender, LinearInput):
                 getter = attrgetter("linear_state")
             elif isinstance(event.sender, DescriptionInput):
@@ -380,21 +399,26 @@ class Pymodoro(App):
             else:
                 return None
 
-            if not event.value:
-                return None
+            # check current timers
+            for ctc in self.query(CountdownTimerComponent):
+                if ctc is not event_ctc and _match(getter(ctc.state)["value"]):
+                    await ctc.stop()
+                    state = ctc.dump_state()
+                    await ctc.remove()
+                    return state
 
+            # check in-memory deleted states
             for i, state in enumerate(self._deleted):
-                if getter(state)["value"] == event.value:
+                if _match(getter(state)["value"]):
                     self._deleted.pop(i)
                     return state
 
+            # check persisted states
             for state in self._prev_deleted_timers or []:
-                if getter(state)["value"] == event.value:
+                if _match(getter(state)["value"]):
                     return state
 
-            return None
-
-        if not (state := _helper()):
+        if not (state := (await _find_matching())):
             return None
 
         if state.id in (ctc.id for ctc in self.query(CountdownTimerComponent)):

@@ -4,7 +4,7 @@ import asyncio
 
 from time import monotonic, sleep
 from contextlib import suppress
-from typing import Any
+from typing import TYPE_CHECKING, Any
 import pendulum
 from textual.app import App, ComposeResult
 
@@ -23,6 +23,9 @@ from utils import format_time
 from pymodoro_state import EventStore
 
 from widgets.countdown_timer import CountdownTimer
+
+if TYPE_CHECKING:
+    from widgets.countdown_timer.component import CountdownTimerComponent
 
 
 class _CountdownTimerMessage(Message):
@@ -50,14 +53,18 @@ class _CountdownTimerMessage(Message):
     @property
     def component_id(self) -> str:
         """get the related ctc's id"""
+        
+        if ctc := self.ctc:
+            return ctc.id
+        return "unknown"
+    
+    @property
+    def ctc(self) -> CountdownTimerComponent:
+        """find the ctc related to this event"""
         from widgets.countdown_timer.component import CountdownTimerComponent
-
-        component = next(
+        return next(
             a for a in self.sender.ancestors if isinstance(a, CountdownTimerComponent)
         )
-        if component:
-            return component.id
-        return "unknown"
 
 
 class CountdownTimerWidget(Static, can_focus=True):

@@ -33,7 +33,7 @@ SearchBox {
 .debug {
   height: 100%;
   border: solid darkolivegreen;
-  display: none;
+  /* display: none; */
 }
 
 CountdownTimerComponent {

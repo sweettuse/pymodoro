@@ -1,25 +1,30 @@
 from __future__ import annotations
 from contextlib import suppress
 
-from typing import Any, Optional
+from typing import TYPE_CHECKING, Any, Optional
 from textual.widgets import Button, Header, Footer, Static, TextLog, Input
 from textual.message import Message, MessageTarget
+from textual.reactive import reactive, var
 from textual import events
 from rich.console import RenderableType
 from rich.text import Text, Span
 from rich.style import Style
 from linear.api import IssueQuery
 
+if TYPE_CHECKING:
+    from widgets.countdown_timer.component import CountdownTimerComponent
 
 class TextInput(Input):
     """text input with some state management functionality"""
 
     state_attrs: tuple[str, ...] = "id", "value", "placeholder", "password"
+    dirty = var(False)
 
     def dump_state(self) -> dict:
         return dict(classes=list(self.classes)) | {
             k: getattr(self, k) for k in self.state_attrs
         }
+    
 
     @classmethod
     def from_state(cls, state: dict[str, Any]):
@@ -30,13 +35,26 @@ class TextInput(Input):
         return res
 
     class ValueAfterBlur(Message):
-        def __init__(self, sender: MessageTarget, value: str):
+        def __init__(self, sender: TextInput, value: str):
             super().__init__(sender)
             self.value = value
 
-    async def on_blur(self, _):
-        await self.emit(self.ValueAfterBlur(self, self.value))
+        @property
+        def ctc(self) -> CountdownTimerComponent:
+            """find the ctc related to this event"""
+            from widgets.countdown_timer.component import CountdownTimerComponent
+            return next(
+                a for a in self.sender.ancestors if isinstance(a, CountdownTimerComponent)
+            )
 
+
+    async def on_blur(self, _):
+        if self.dirty:
+            await self.emit(self.ValueAfterBlur(self, self.value))
+            self.dirty = False
+    
+    def watch_value(self, _):
+        self.dirty = True
 
 class DescriptionInput(TextInput):
     """class for the description input box"""
