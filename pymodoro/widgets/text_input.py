@@ -14,6 +14,7 @@ from linear.api import IssueQuery
 if TYPE_CHECKING:
     from widgets.countdown_timer.component import CountdownTimerComponent
 
+
 class TextInput(Input):
     """text input with some state management functionality"""
 
@@ -24,7 +25,6 @@ class TextInput(Input):
         return dict(classes=list(self.classes)) | {
             k: getattr(self, k) for k in self.state_attrs
         }
-    
 
     @classmethod
     def from_state(cls, state: dict[str, Any]):
@@ -43,26 +43,30 @@ class TextInput(Input):
         def ctc(self) -> CountdownTimerComponent:
             """find the ctc related to this event"""
             from widgets.countdown_timer.component import CountdownTimerComponent
-            return next(
-                a for a in self.sender.ancestors if isinstance(a, CountdownTimerComponent)
-            )
 
+            return next(
+                a
+                for a in self.sender.ancestors
+                if isinstance(a, CountdownTimerComponent)
+            )
 
     async def on_blur(self, _):
         if self.dirty:
             await self.emit(self.ValueAfterBlur(self, self.value))
             self.dirty = False
-    
+
     def watch_value(self, _):
         self.dirty = True
+
 
 class DescriptionInput(TextInput):
     """class for the description input box"""
 
 
 class LinearInput(TextInput):
-    """get description from linear and update description in CTC;
-    link to the issue in linear
+    """get description from linear and update description in CTC.
+
+    link to the url of the issue in linear
     """
 
     url_format = "https://linear.app/tuse/issue/{}"
@@ -116,7 +120,7 @@ class TimeInput(TextInput):
         by default, interpret value as minutes.
         if suffixed with `s`, interpret as seconds
         can also parse something like:
-            "[hours]:[minutes]:seconds"
+            "[hours:][minutes:]seconds"
         """
         with suppress(Exception):
             if self.value.endswith("s"):

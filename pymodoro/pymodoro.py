@@ -6,7 +6,7 @@ from functools import cache, partial
 from itertools import chain
 from operator import attrgetter
 
-from typing import Any, Optional
+from typing import Any, Literal, Optional
 from textual.app import App, ComposeResult
 
 from textual.containers import Container
@@ -20,7 +20,9 @@ from textual.message import Message, MessageTarget
 from textual.widgets import Button, Header, Footer, Static, TextLog, Input
 from textual.containers import Horizontal
 from textual.binding import Binding
+from textual.css.query import DOMQuery
 from textual._node_list import DuplicateIds
+from utils import exec_on_repeat
 from widgets.text_input import LinearInput, TextInput, DescriptionInput
 from sound import play_sound
 from widgets.global_timer import (
@@ -44,18 +46,20 @@ class Pymodoro(App):
 
     BINDINGS = [
         Binding("j", "focus_next_timer", "focus/move prev/next", key_display="j/J/k/K"),
-        Binding("e", "edit_time", "edit remaining", key_display="e"),
-        Binding("space", "start_or_stop", "start or stop", key_display="space"),
-        Binding("A", "add_new_timer", "add timer", key_display="A"),
-        Binding("D", "delete_selected_timer", "del timer", key_display="D"),
-        Binding("U", "undo_delete_timer", "undo del", key_display="U"),
-        Binding("/", "focus_search", "search", key_display="/"),
-        Binding("r", "reset", "reset", key_display="r"),
-        HiddenBinding("d", "dump_state", "dump state"),
         HiddenBinding("k", "focus_prev_timer", "focus/move prev"),
         HiddenBinding("J", "move_down", "move widget down"),
         HiddenBinding("K", "move_up", "move widget up"),
+        Binding("e", "edit_time", "edit remaining", key_display="e"),
+        Binding("space", "start_or_stop", "start or stop", key_display="space"),
+        Binding("o", "add_new_timer_after", "add timer", key_display="o/O"),
+        HiddenBinding("O", "add_new_timer_before", "add timer"),
+        Binding("d", "delete_selected_timer_dd", "del timer", key_display="dd"),
+        Binding("U", "undo_delete_timer", "undo del", key_display="U"),
+        Binding("/", "focus_search", "search", key_display="/"),
+        Binding("r", "reset", "reset", key_display="r"),
         HiddenBinding("escape", "focus_container", "focus outer container"),
+        HiddenBinding("g", "focus_top_ctc", "focus top timer"),
+        HiddenBinding("G", "focus_bottom_ctc", "focus bottom"),
     ]
 
     _currently_moving = var(False)
@@ -83,12 +87,32 @@ class Pymodoro(App):
         """get timers that were previously deleted"""
         return StateStore.load_deleted()
 
+    @property
+    def _ctc_query(self) -> DOMQuery:
+        return self.query(CountdownTimerComponent)
+
+    @property
+    def _visible_ctc_query(self) -> DOMQuery:
+        return self._ctc_query.exclude(".hidden")
+
+    @property
+    def _focused_ctc(self) -> CountdownTimerComponent | None:
+        if not (focused := self._find_focused_or_focused_within()):
+            return
+
+        idx, ctcs = focused
+        if idx is not None:
+            return ctcs[idx]
+
     # ==========================================================================
     # actions
     # ==========================================================================
+
     def action_dump_state(self):
         """dump state out to state store"""
-        active_states = [ctc.dump_state() for ctc in self.query(CountdownTimerComponent)]
+        active_states = [
+            ctc.dump_state() for ctc in self.query(CountdownTimerComponent)
+        ]
         # add active_states twice, first to ensure proper ordering, second to ensure proper data
         states = [
             active_states,
@@ -147,26 +171,36 @@ class Pymodoro(App):
 
     async def action_quit(self):
         """called by framework"""
-        for ctc in self.query(CountdownTimerComponent).filter(".active"):
+        for ctc in self._ctc_query.filter(".active"):
             await ctc.stop()
         self.action_dump_state()
         self.exit()
 
-    async def action_add_new_timer(self):
-        """add a new timer below the current focused one"""
+    async def action_add_new_timer_before(self):
+        """add a new timer before the current focused one"""
+        await self._action_add_new_timer("before")
+
+    async def action_add_new_timer_after(self):
+        """add a new timer after the current focused one"""
+        await self._action_add_new_timer("after")
+
+    async def _action_add_new_timer(self, before_or_after: Literal["before", "after"]):
         kw = {}
-        if focused := self._find_focused_or_focused_within():
-            idx, ctcs = focused
-            if idx is not None:
-                kw = dict(after=ctcs[idx])
+        if _focused_ctc := self._focused_ctc:
+            kw = {before_or_after: _focused_ctc}
         await self._add_timer(self._create_new_timer(), **kw)
 
     async def action_undo_delete_timer(self):
+        """resurrect in-memory 'deleted' timer"""
         if not self._deleted:
             return
 
         state = self._deleted.pop()
-        await self._add_timer(CountdownTimerComponent.from_state(state))
+
+        kw = {}
+        if _focused_ctc := self._focused_ctc:
+            kw = dict(before=_focused_ctc)
+        await self._add_timer(CountdownTimerComponent.from_state(state), **kw)
 
     def action_focus_search(self):
         """set focus to search box and clear the current value"""
@@ -200,7 +234,10 @@ class Pymodoro(App):
         if to_focus:
             to_focus.focus()
 
+    action_delete_selected_timer_dd = exec_on_repeat(action_delete_selected_timer)
+
     async def action_reset(self):
+        """reset time on focused timer"""
         if not (focused := self._find_focused_or_focused_within()):
             return
 
@@ -208,6 +245,19 @@ class Pymodoro(App):
         ctc = ctcs[idx or 0]
         await ctc.stop()
         await ctc.reset()
+
+    @exec_on_repeat
+    def action_focus_top_ctc(self):
+        self._focus_ctc_by_idx(0)
+
+    def action_focus_bottom_ctc(self):
+        self._focus_ctc_by_idx(-1)
+
+    def _focus_ctc_by_idx(self, index: int):
+        if not (ctcs := list(self._visible_ctc_query)):
+            return
+
+        ctcs[index].focus()
 
     # ==========================================================================
     # event handlers
@@ -217,7 +267,9 @@ class Pymodoro(App):
         """the total time for a pomodoro has been updated"""
         self._focus_ctc(0)
 
-    async def on_countdown_timer_widget_started(self, event: CountdownTimerWidget.Started):
+    async def on_countdown_timer_widget_started(
+        self, event: CountdownTimerWidget.Started
+    ):
         """start the global timer"""
         self.has_active_timer = True
         self._debug(event)
@@ -236,7 +288,9 @@ class Pymodoro(App):
         """tick the global timer"""
         await self._update_global_timer(event)
 
-    async def on_countdown_timer_widget_completed(self, event: CountdownTimerWidget.Completed):
+    async def on_countdown_timer_widget_completed(
+        self, event: CountdownTimerWidget.Completed
+    ):
         """let the global timer know the timer has completed and play a sound"""
         self._debug(event)
         await self._update_global_timer(event)
@@ -295,7 +349,7 @@ class Pymodoro(App):
         if exists, return its idx and a list of all CountdownTimerComponents
         else, return None
         """
-        if not (ctcs := list(self.query(CountdownTimerComponent).exclude(".hidden"))):
+        if not (ctcs := list(self._visible_ctc_query)):
             return None
 
         for i, ctc in enumerate(ctcs):

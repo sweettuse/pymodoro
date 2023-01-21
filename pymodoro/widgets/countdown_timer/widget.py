@@ -53,15 +53,16 @@ class _CountdownTimerMessage(Message):
     @property
     def component_id(self) -> str:
         """get the related ctc's id"""
-        
+
         if ctc := self.ctc:
             return ctc.id
         return "unknown"
-    
+
     @property
     def ctc(self) -> CountdownTimerComponent:
         """find the ctc related to this event"""
         from widgets.countdown_timer.component import CountdownTimerComponent
+
         return next(
             a for a in self.sender.ancestors if isinstance(a, CountdownTimerComponent)
         )

@@ -118,7 +118,7 @@ class CountdownTimerComponent(Static, can_focus=True, can_focus_children=True):
         """stop child widget"""
         if self.is_active:
             await self.query_one(CountdownTimerWidget).stop()
-    
+
     async def reset(self):
         await self.query_one(CountdownTimerWidget).reset()
 
