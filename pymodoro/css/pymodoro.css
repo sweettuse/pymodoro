@@ -113,14 +113,6 @@ Button {
   padding: $text_padding;
 }
 
-#time_input {
-  width: $timer_width;
-  height: $element_height;
-  border: round $desc_color;
-  border: none;
-  padding: 2;
-}
-
 #description:focus {
   border: tall $desc_color;
 }

@@ -123,7 +123,26 @@ class CountdownTimerState:
     description_state: dict | None = None
     countdown_timer_state: dict | None = None
     time_input_state: dict | None = None
+    manual_accounting_state: dict | None = None
     was_active: bool = False
+
+    def __post_init__(self):
+        self._set_defaults_if_needed()
+
+    def _set_defaults_if_needed(self):
+        """set default configs on previously unsaved fields
+
+        i.e., when you add a new field, it won't be saved on older objects.
+        this fills them in with defaults
+        """
+        for attr in self.__dataclass_fields__:
+            if not attr.endswith("_state"):
+                continue
+            if getattr(self, attr):
+                continue
+            default = default_config_json.get(attr).copy()
+            setattr(self, attr, default)
+        self.time_input_state.setdefault("placeholder", "edit total")
 
     def calc_num_pomodoros(self, current_pomodoro_secs: float) -> int:
         """number of pomodoros that would've been completed based on the current length"""
@@ -146,6 +165,9 @@ class CountdownTimerState:
             description_state=ctc.query_one("#description", TextInput).dump_state(),
             countdown_timer_state=ctc.query_one(CountdownTimerWidget).ct.dump_state(),
             time_input_state=ctc.query_one("#time_input", TextInput).dump_state(),
+            manual_accounting_state=ctc.query_one(
+                "#manual_accounting", TextInput
+            ).dump_state(),
             was_active=ctc.is_active,
         )
 
@@ -154,9 +176,7 @@ class CountdownTimerState:
         """create new default state with id added"""
         from widgets.countdown_timer import CountdownTimerComponent
 
-        return cls(
-            **(dict(id=CountdownTimerComponent.new_id()) | json.loads(default_config))
-        )
+        return cls(**(dict(id=CountdownTimerComponent.new_id()) | default_config_json))
 
 
 default_config = """
@@ -188,11 +208,22 @@ default_config = """
       ],               
       "id": "time_input",
       "value": "",            
-      "placeholder": "",      
+      "placeholder": "edit total",      
+      "password": false   
+    },
+    "manual_accounting_state": { 
+      "classes": [
+        "hidden"                   
+      ],               
+      "id": "manual_accounting",
+      "value": "",            
+      "placeholder": "manual",      
       "password": false   
     } 
   }
 """
+
+default_config_json = json.loads(default_config)
 
 # if __name__ == '__main__':
 #     states = [

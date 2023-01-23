@@ -15,7 +15,17 @@ if TYPE_CHECKING:
 
 
 class EventMessage(Message):
-    """base class to log all changes to the EventStore"""
+    """base class to log all changes to the EventStore
+
+    ⚠️ note: must override `event_data` and fill in with what data you
+    want your event to persist.
+
+    ⚠️ note: because we register on event creation, must call
+        `super().__init__(sender)`
+    last from subclasses
+
+    see `ManualTimeAccounting.AccountedTime` for an example of both of these
+    """
 
     def __init__(self, sender: MessageTarget) -> None:
         super().__init__(sender)

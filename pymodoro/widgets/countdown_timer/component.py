@@ -37,13 +37,16 @@ from widgets.countdown_timer import CountdownTimer, CountdownTimerWidget
 
 class TotalTimeSpent(Static):
     spent_in_current_period = reactive(0.0)
-    prev_spent = var(0.0)
+    prev_spent = reactive(0.0)
 
     def watch_spent_in_current_period(self, new_amount):
         rem = int(new_amount + self.prev_spent)
         text = Align(format_time(rem), "center", vertical="middle")
         res = Panel(text, title="spent")
         self.update(res)
+
+    def watch_prev_spent(self, _):
+        self.watch_spent_in_current_period(self.spent_in_current_period)
 
 
 class TimeGroup(Vertical):
@@ -113,6 +116,7 @@ class CountdownTimerComponent(Static, can_focus=True, can_focus_children=True):
                     CountdownTimer.from_state(state.countdown_timer_state)
                 ),
                 TimeInput.from_state(state.time_input_state),
+                ManualTimeAccounting.from_state(state.manual_accounting_state),
                 tts,
             ),
             Button("reset", id="reset", variant="default"),
@@ -195,10 +199,21 @@ class CountdownTimerComponent(Static, can_focus=True, can_focus_children=True):
 
     async def on_time_input_new_total_seconds(self, msg: TimeInput.NewTotalSeconds):
         """handle when amount remaining is changed"""
+        await self.stop()
         ctw = self.query_one(CountdownTimerWidget)
         ctw.ct.initial_seconds = msg.total_seconds
         await ctw.reset()
         self.exit_edit_time()
+
+    async def on_manual_time_accounting_accounted_time(
+        self,
+        event: ManualTimeAccounting.AccountedTime,
+    ):
+        tts = self.query_one(TotalTimeSpent)
+        tts.prev_spent += event.elapsed
+        self.state.total_seconds_completed += event.elapsed
+        self.exit_manually_accounting_for_time()
+        self.focus()
 
     def on_click(self):
         self.focus()
@@ -228,7 +243,7 @@ class CountdownTimerComponent(Static, can_focus=True, can_focus_children=True):
     def exit_manually_accounting_for_time(self):
         """called when done manually accounting for time"""
         ti = self._set_edit_time_classes(editing=False, time_class=ManualTimeAccounting)
-        ti.focus()
+        ti.value = ""
 
     def matches_search(self, search_str: str) -> bool:
         """whether this component matches the search str"""
@@ -243,7 +258,7 @@ class CountdownTimerComponent(Static, can_focus=True, can_focus_children=True):
     def _set_edit_time_classes(
         self, *, editing: bool, time_class: Type[TimeInputBase]
     ) -> TimeInputBase:
-        """hide/show relevant widgets when editing remaining time"""
+        """hide/show relevant widgets when editing remaining time or manually accounting for time spent"""
         self.query_one(CountdownTimerWidget).set_class(editing, "hidden")
         self.query_one(TotalTimeSpent).set_class(editing, "hidden")
         (ti := self.query_one(time_class)).set_class(not editing, "hidden")

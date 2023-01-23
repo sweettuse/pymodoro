@@ -62,6 +62,11 @@ class Pymodoro(App):
         HiddenBinding("G", "focus_bottom_ctc", "focus bottom"),
         HiddenBinding("p", "add_deleted_after", "add recently deleted timer after"),
         HiddenBinding("P", "add_deleted_before", "add recently deleted timer before"),
+        HiddenBinding(
+            "m",
+            "add_manually_accounted_time",
+            "add time you forgot to start the timer for",
+        ),
     ]
 
     _currently_moving = var(False)
@@ -146,15 +151,20 @@ class Pymodoro(App):
         """focus the current container"""
         if ctc := self._focus_ctc(0):
             ctc.exit_edit_time()
+            ctc.exit_manually_accounting_for_time()
 
     def action_edit_time(self):
         """change to edit remaining time"""
-        if not (focused := self._find_focused_or_focused_within()):
+        if not (ctc := self._focused_ctc):
             return
 
-        idx, ctcs = focused
-        ctc = ctcs[idx or 0]
         ctc.enter_edit_time()
+
+    def action_add_manually_accounted_time(self):
+        if not (ctc := self._focused_ctc):
+            return
+
+        ctc.enter_manually_accounting_for_time()
 
     async def action_start_or_stop(self):
         """start or stop a timer"""

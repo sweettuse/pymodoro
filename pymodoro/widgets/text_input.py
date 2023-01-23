@@ -104,7 +104,7 @@ class LinearInput(TextInput):
 class TimeInputBase(TextInput):
     """enter new remaining time for countdown timer"""
 
-    def _to_seconds(self) -> Optional[float]:
+    def _to_seconds(self) -> float | None:
         """convert value to seconds
 
         by default, interpret value as minutes.
@@ -113,6 +113,9 @@ class TimeInputBase(TextInput):
             "[hours:][minutes:]seconds"
         """
         with suppress(Exception):
+            if not self.value:
+                return None
+
             if self.value.endswith("s"):
                 return int(self.value[:-1])
             if self.value.endswith("m"):
@@ -123,9 +126,12 @@ class TimeInputBase(TextInput):
                 return None
 
             if len(fields) == 1:
-                return 60 * int(fields[0])
+                return 60 * float(fields[0])
 
             m = 1
+            if fields[0].startswith("-"):
+                m = -1
+                fields[0] = fields[0][1:]
             res = 0.0
             for f in reversed(fields):
                 res += m * float(f)
@@ -147,19 +153,28 @@ class TimeInput(TimeInputBase):
         if new_seconds := self._to_seconds():
             await self.emit(self.NewTotalSeconds(self, new_seconds))
 
+    def _to_seconds(self) -> float | None:
+        if not (res := super()._to_seconds()):
+            return res
+        return max(0.0, res)
+
 
 class ManualTimeAccounting(TimeInputBase):
     """class to manually account for time that you might have missed"""
 
     class AccountedTime(EventMessage):
-        def __init__(self, sender: MessageTarget, new_total_seconds: float):
+        def __init__(self, sender: MessageTarget, elapsed_secs: float):
+            self.elapsed = elapsed_secs
             super().__init__(sender)
-            self.total_seconds = new_total_seconds
 
         @property
-        def name(self):
-            return "accounted_time"
+        def name(self) -> str:
+            return "manually_accounted_time"
+
+        @property
+        def event_data(self) -> dict[str, Any]:
+            return super().event_data | dict(elapsed=round(self.elapsed, 3))
 
     async def action_submit(self):
-        if new_seconds := self._to_seconds():
-            await self.emit(self.AccountedTime(self, new_seconds))
+        if elapsed := self._to_seconds():
+            await self.emit(self.AccountedTime(self, elapsed))
