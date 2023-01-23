@@ -7,7 +7,7 @@ from dataclasses import asdict, dataclass
 from enum import Enum
 import json
 from pathlib import Path
-from typing import Iterable, Literal, Optional, TYPE_CHECKING, TypeAlias
+from typing import Iterable, Literal, TYPE_CHECKING, TypeAlias
 
 import pendulum
 
@@ -78,7 +78,7 @@ class StateStore:
 
     @classmethod
     @_cache
-    def load(cls) -> Optional[list[CountdownTimerState]]:
+    def load(cls) -> list[CountdownTimerState] | None:
         with suppress(Exception):
             with open(cls.store, "r") as f:
                 res = json.load(f)
@@ -86,7 +86,7 @@ class StateStore:
 
     @classmethod
     @_cache
-    def load_current(cls) -> Optional[list[CountdownTimerState]]:
+    def load_current(cls) -> list[CountdownTimerState] | None:
         """load not deleted timers"""
         if not (states := cls.load()):
             return None
@@ -94,7 +94,7 @@ class StateStore:
 
     @classmethod
     @_cache
-    def load_deleted(cls) -> Optional[list[CountdownTimerState]]:
+    def load_deleted(cls) -> list[CountdownTimerState] | None:
         """load deleted timers"""
         if not (states := cls.load()):
             return None
@@ -114,15 +114,15 @@ class StateStore:
 class CountdownTimerState:
     """class storing all data to rehydrate a CountdownTimerComponent"""
 
-    id: Optional[str] = ""
+    id: str | None = ""
     status: Status = "in_progress"
     total_seconds_completed: float = 0.0
     num_pomodoros_completed: int = 0
 
-    linear_state: Optional[dict] = None
-    description_state: Optional[dict] = None
-    countdown_timer_state: Optional[dict] = None
-    time_input_state: Optional[dict] = None
+    linear_state: dict | None = None
+    description_state: dict | None = None
+    countdown_timer_state: dict | None = None
+    time_input_state: dict | None = None
     was_active: bool = False
 
     def calc_num_pomodoros(self, current_pomodoro_secs: float) -> int:

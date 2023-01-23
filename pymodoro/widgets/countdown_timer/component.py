@@ -4,7 +4,7 @@ import asyncio
 from enum import Enum
 from functools import partial
 
-from typing import Any, Optional
+from typing import Any, Optional, Type
 from uuid import uuid4
 from textual.app import App, ComposeResult
 
@@ -23,7 +23,14 @@ from textual.containers import Horizontal, Vertical
 from textual.binding import Binding
 from utils import format_time
 from pymodoro_state import CountdownTimerState, StateStore
-from widgets.text_input import LinearInput, TextInput, TimeInput, DescriptionInput
+from widgets.text_input import (
+    LinearInput,
+    TextInput,
+    TimeInput,
+    DescriptionInput,
+    TimeInputBase,
+    ManualTimeAccounting,
+)
 
 from widgets.countdown_timer import CountdownTimer, CountdownTimerWidget
 
@@ -61,6 +68,7 @@ class CountdownTimerComponent(Static, can_focus=True, can_focus_children=True):
     @classmethod
     def from_state(cls, state: CountdownTimerState) -> CountdownTimerComponent:
         res = cls(id=state.id)
+        state.status = "in_progress"
         res.state = state
         return res
 
@@ -204,13 +212,23 @@ class CountdownTimerComponent(Static, can_focus=True, can_focus_children=True):
 
     def enter_edit_time(self):
         """called to allow changing of remaining time"""
-        ti = self._set_edit_time_classes(editing=True)
+        ti = self._set_edit_time_classes(editing=True, time_class=TimeInput)
         ti.focus()
 
     def exit_edit_time(self):
         """called when done editing remaining time"""
-        ti = self._set_edit_time_classes(editing=False)
+        ti = self._set_edit_time_classes(editing=False, time_class=TimeInput)
         ti.value = ""
+
+    def enter_manually_accounting_for_time(self):
+        """called to allow entering manually accounted time"""
+        ti = self._set_edit_time_classes(editing=True, time_class=ManualTimeAccounting)
+        ti.focus()
+
+    def exit_manually_accounting_for_time(self):
+        """called when done manually accounting for time"""
+        ti = self._set_edit_time_classes(editing=False, time_class=ManualTimeAccounting)
+        ti.focus()
 
     def matches_search(self, search_str: str) -> bool:
         """whether this component matches the search str"""
@@ -222,11 +240,13 @@ class CountdownTimerComponent(Static, can_focus=True, can_focus_children=True):
             or search_str in self.query_one("#description", TextInput).value
         )
 
-    def _set_edit_time_classes(self, *, editing: bool) -> TimeInput:
+    def _set_edit_time_classes(
+        self, *, editing: bool, time_class: Type[TimeInputBase]
+    ) -> TimeInputBase:
         """hide/show relevant widgets when editing remaining time"""
         self.query_one(CountdownTimerWidget).set_class(editing, "hidden")
         self.query_one(TotalTimeSpent).set_class(editing, "hidden")
-        (ti := self.query_one(TimeInput)).set_class(not editing, "hidden")
+        (ti := self.query_one(time_class)).set_class(not editing, "hidden")
         return ti
 
     def _set_active(self, *, active: bool) -> None:

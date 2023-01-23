@@ -1,7 +1,9 @@
 from __future__ import annotations
 from collections import defaultdict
+from time import monotonic
 
 from pymodoro.pymodoro_state import EventStore, StateStore
+import pandas as pd
 from rich import print
 
 
@@ -23,8 +25,22 @@ def calc_time_spent():
     return by_comp_id
 
 
-def main():
+def as_df():
+    start = monotonic()
     events = EventStore.load()
+    df = pd.DataFrame([e for e in events if e.get("name") == "stopped"])
+    end1 = monotonic()
+    print(df)
+    print(end1 - start)
+    print(monotonic() - end1)
+
+
+def main():
+    return as_df()
+    events = EventStore.load()
+
+    for e in events[:30]:
+        print(e)
     grouped = _group_by_comp_id(events)
     total = {
         k: sum(float(d.get("elapsed", 0.0)) for d in group)

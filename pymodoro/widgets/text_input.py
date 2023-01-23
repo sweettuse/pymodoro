@@ -10,6 +10,7 @@ from rich.console import RenderableType
 from rich.text import Text, Span
 from rich.style import Style
 from linear.api import IssueQuery
+from utils import EventMessage
 
 if TYPE_CHECKING:
     from widgets.countdown_timer.component import CountdownTimerComponent
@@ -100,19 +101,8 @@ class LinearInput(TextInput):
         return Text(self.value, spans=[span])
 
 
-class TimeInput(TextInput):
+class TimeInputBase(TextInput):
     """enter new remaining time for countdown timer"""
-
-    class NewTotalSeconds(Message):
-        """emit when the total remaining time has changed"""
-
-        def __init__(self, sender: MessageTarget, new_total_seconds: float):
-            super().__init__(sender)
-            self.total_seconds = new_total_seconds
-
-    async def action_submit(self):
-        if new_seconds := self._to_seconds():
-            await self.emit(self.NewTotalSeconds(self, new_seconds))
 
     def _to_seconds(self) -> Optional[float]:
         """convert value to seconds
@@ -141,3 +131,35 @@ class TimeInput(TextInput):
                 res += m * float(f)
                 m *= 60
             return res
+
+
+class TimeInput(TimeInputBase):
+    """class to change remaining time"""
+
+    class NewTotalSeconds(Message):
+        """emit when the total remaining time has changed"""
+
+        def __init__(self, sender: MessageTarget, new_total_seconds: float):
+            super().__init__(sender)
+            self.total_seconds = new_total_seconds
+
+    async def action_submit(self):
+        if new_seconds := self._to_seconds():
+            await self.emit(self.NewTotalSeconds(self, new_seconds))
+
+
+class ManualTimeAccounting(TimeInputBase):
+    """class to manually account for time that you might have missed"""
+
+    class AccountedTime(EventMessage):
+        def __init__(self, sender: MessageTarget, new_total_seconds: float):
+            super().__init__(sender)
+            self.total_seconds = new_total_seconds
+
+        @property
+        def name(self):
+            return "accounted_time"
+
+    async def action_submit(self):
+        if new_seconds := self._to_seconds():
+            await self.emit(self.AccountedTime(self, new_seconds))

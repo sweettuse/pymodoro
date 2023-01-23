@@ -6,7 +6,7 @@ from functools import cache, partial
 from itertools import chain
 from operator import attrgetter
 
-from typing import Any, Literal, Optional
+from typing import Any, Literal
 from textual.app import App, ComposeResult
 
 from textual.containers import Container
@@ -60,6 +60,8 @@ class Pymodoro(App):
         HiddenBinding("escape", "focus_container", "focus outer container"),
         HiddenBinding("g", "focus_top_ctc", "focus top timer"),
         HiddenBinding("G", "focus_bottom_ctc", "focus bottom"),
+        HiddenBinding("p", "add_deleted_after", "add recently deleted timer after"),
+        HiddenBinding("P", "add_deleted_before", "add recently deleted timer before"),
     ]
 
     _currently_moving = var(False)
@@ -70,6 +72,7 @@ class Pymodoro(App):
     def compose(self) -> ComposeResult:
         self.has_active_timer = False
         self._deleted = []
+        self._last_deleted = None
 
         if states := StateStore.load_current():
             timers = map(CountdownTimerComponent.from_state, states)
@@ -184,11 +187,16 @@ class Pymodoro(App):
         """add a new timer after the current focused one"""
         await self._action_add_new_timer("after")
 
-    async def _action_add_new_timer(self, before_or_after: Literal["before", "after"]):
+    async def _action_add_new_timer(
+        self,
+        before_or_after: Literal["before", "after"],
+        timer: CountdownTimerComponent | None = None,
+    ):
         kw = {}
         if _focused_ctc := self._focused_ctc:
             kw = {before_or_after: _focused_ctc}
-        await self._add_timer(self._create_new_timer(), **kw)
+        timer = timer or self._create_new_timer()
+        await self._add_timer(timer, **kw)
 
     async def action_undo_delete_timer(self):
         """resurrect in-memory 'deleted' timer"""
@@ -230,6 +238,7 @@ class Pymodoro(App):
         state = ctc.dump_state()
         state.status = "deleted"
         self._deleted.append(state)
+        self._last_deleted = state
         ctc.remove()
         if to_focus:
             to_focus.focus()
@@ -258,6 +267,24 @@ class Pymodoro(App):
             return
 
         ctcs[index].focus()
+
+    async def action_add_deleted_after(self):
+        await self._action_add_deleted_timer("after")
+
+    async def action_add_deleted_before(self):
+        await self._action_add_deleted_timer("before")
+
+    async def _action_add_deleted_timer(
+        self, before_or_after: Literal["before", "after"]
+    ):
+        if not self._last_deleted:
+            return
+
+        ld = self._last_deleted
+        self._last_deleted = None
+        await self._action_add_new_timer(
+            before_or_after, CountdownTimerComponent.from_state(ld)
+        )
 
     # ==========================================================================
     # event handlers
@@ -342,7 +369,7 @@ class Pymodoro(App):
 
     def _find_focused_or_focused_within(
         self,
-    ) -> Optional[tuple[Optional[int], list[CountdownTimerComponent]]]:
+    ) -> None | tuple[int | None, list[CountdownTimerComponent]]:
         """find which CountdownTimerComponent has a widget with focus-within
         or itself has focus
 
@@ -360,7 +387,7 @@ class Pymodoro(App):
 
         return i, ctcs
 
-    def _focus_ctc(self, offset: int) -> Optional[CountdownTimerComponent]:
+    def _focus_ctc(self, offset: int) -> None | CountdownTimerComponent:
         """set focus to ctc by offset from current focus"""
         if not (focused := self._find_focused_or_focused_within()):
             return
@@ -427,7 +454,7 @@ class Pymodoro(App):
 
     async def _find_matching_timer(
         self, event: TextInput.ValueAfterBlur
-    ) -> Optional[CountdownTimerState]:
+    ) -> None | CountdownTimerState:
         """find a matching timer based on the value in the recently blurred field
 
         return its state if found
@@ -445,13 +472,13 @@ class Pymodoro(App):
                 return False
             return value.lower() == event_value_lower
 
-        async def _find_matching() -> Optional[CountdownTimerState]:
+        async def _find_matching() -> None | CountdownTimerState:
             if isinstance(event.sender, LinearInput):
                 getter = attrgetter("linear_state")
             elif isinstance(event.sender, DescriptionInput):
                 getter = attrgetter("description_state")
             else:
-                return None
+                return
 
             # check current timers
             for ctc in self.query(CountdownTimerComponent):

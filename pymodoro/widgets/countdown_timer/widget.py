@@ -19,6 +19,7 @@ from rich.align import Align
 from rich.panel import Panel
 from textual.reactive import reactive
 from textual.widgets import Button, Header, Footer, Static
+from pymodoro.utils import EventMessage
 from utils import format_time
 from pymodoro_state import EventStore
 
@@ -28,44 +29,8 @@ if TYPE_CHECKING:
     from widgets.countdown_timer.component import CountdownTimerComponent
 
 
-class _CountdownTimerMessage(Message):
+class _CountdownTimerMessage(EventMessage):
     """base class to log all changes to the EventStore"""
-
-    def __init__(self, sender: MessageTarget) -> None:
-        super().__init__(sender)
-        self.at = pendulum.now()
-        EventStore.register(self.event_data)
-
-    @property
-    def event_data(self) -> dict[str, Any]:
-        """as this should be stored in the EventStore"""
-        return dict(
-            component_id=self.component_id,
-            name=self.name,
-            at=str(self.at),
-        )
-
-    @property
-    def name(self):
-        """lowercase class name"""
-        return type(self).__name__.lower()
-
-    @property
-    def component_id(self) -> str:
-        """get the related ctc's id"""
-
-        if ctc := self.ctc:
-            return ctc.id
-        return "unknown"
-
-    @property
-    def ctc(self) -> CountdownTimerComponent:
-        """find the ctc related to this event"""
-        from widgets.countdown_timer.component import CountdownTimerComponent
-
-        return next(
-            a for a in self.sender.ancestors if isinstance(a, CountdownTimerComponent)
-        )
 
 
 class CountdownTimerWidget(Static, can_focus=True):

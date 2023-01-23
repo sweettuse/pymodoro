@@ -1,8 +1,58 @@
 from __future__ import annotations
+from abc import abstractmethod
 from collections import deque
 from functools import partial, wraps
 from time import monotonic
-from typing import Callable
+from typing import TYPE_CHECKING, Any, Callable
+import pendulum
+
+from textual.message import Message, MessageTarget
+
+from pymodoro_state import EventStore
+
+if TYPE_CHECKING:
+    from widgets.countdown_timer.component import CountdownTimerComponent
+
+
+class EventMessage(Message):
+    """base class to log all changes to the EventStore"""
+
+    def __init__(self, sender: MessageTarget) -> None:
+        super().__init__(sender)
+        self.at = pendulum.now()
+        EventStore.register(self.event_data)
+
+    @property
+    def event_data(self) -> dict[str, Any]:
+        """as this should be stored in the EventStore"""
+        return dict(
+            component_id=self.component_id,
+            name=self.name,
+            at=str(self.at),
+        )
+
+    @property
+    def name(self):
+        """lowercase class name"""
+        return type(self).__name__.lower()
+
+    @property
+    def component_id(self) -> str:
+        """get the related ctc's id"""
+
+        try:
+            return self.ctc.id
+        except Exception:
+            return "unknown"
+
+    @property
+    def ctc(self) -> CountdownTimerComponent:
+        """find the ctc related to this event"""
+        from widgets.countdown_timer.component import CountdownTimerComponent
+
+        return next(
+            a for a in self.sender.ancestors if isinstance(a, CountdownTimerComponent)
+        )
 
 
 def format_time(num_secs: int | float) -> str:
@@ -27,13 +77,13 @@ def format_time(num_secs: int | float) -> str:
 
 
 def exec_on_repeat(
-    fn: Callable = None, *, num_repeat: int = 2, window_ms: int | float = 250
+    fn: Callable | None = None, /, *, num_repeat: int = 2, window_ms: int | float = 250
 ):
     """decorator to enable exec'ing actions after a
     repeated number of calls in a certain amount of time
     """
     if not fn:
-        return partial(fn, num_repeat=num_repeat, window_ms=window_ms)
+        return partial(exec_on_repeat, num_repeat=num_repeat, window_ms=window_ms)
 
     assert num_repeat > 0
     assert window_ms > 0
@@ -51,9 +101,9 @@ def exec_on_repeat(
     @wraps(fn)
     def wrapper(*a, **kw):
         call_times.append(monotonic())
-        print("call_times", call_times)
         if (call_times[-1] - call_times[0]) > window_secs:
             return
+
         _reset()
         return fn(*a, **kw)
 
