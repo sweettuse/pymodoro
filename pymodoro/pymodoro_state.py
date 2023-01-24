@@ -142,7 +142,12 @@ class CountdownTimerState:
                 continue
             default = default_config_json.get(attr).copy()
             setattr(self, attr, default)
-        self.time_input_state.setdefault("placeholder", "edit rem")
+        self.time_input_state["placeholder"] = (
+            self.time_input_state["placeholder"] or "edit rem"
+        )
+        self.manual_accounting_state["placeholder"] = (
+            self.manual_accounting_state["placeholder"] or "manual"
+        )
 
     def calc_num_pomodoros(self, current_pomodoro_secs: float) -> int:
         """number of pomodoros that would've been completed based on the current length"""
@@ -207,7 +212,7 @@ default_config = """
         "hidden"                   
       ],               
       "id": "time_input",
-      "value": "",            
+      "value": "",
       "placeholder": "edit rem",
       "password": false   
     },

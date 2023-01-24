@@ -29,10 +29,9 @@ class TextInput(Input):
 
     @classmethod
     def from_state(cls, state: dict[str, Any]):
-        classes = state.pop("classes")
         kw = {k: state.get(k) for k in cls.state_attrs}
         res = cls(**kw)
-        res.add_class(*classes)
+        res.add_class(*state["classes"])
         return res
 
     class ValueAfterBlur(Message):

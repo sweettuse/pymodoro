@@ -96,11 +96,11 @@ class Pymodoro(App):
         return StateStore.load_deleted()
 
     @property
-    def _ctc_query(self) -> DOMQuery:
+    def _ctc_query(self) -> DOMQuery[CountdownTimerComponent]:
         return self.query(CountdownTimerComponent)
 
     @property
-    def _visible_ctc_query(self) -> DOMQuery:
+    def _visible_ctc_query(self) -> DOMQuery[CountdownTimerComponent]:
         return self._ctc_query.exclude(".hidden")
 
     @property
@@ -186,6 +186,13 @@ class Pymodoro(App):
         """called by framework"""
         for ctc in self._ctc_query.filter(".active"):
             await ctc.stop()
+
+        # wait for stop message to propagate
+        for _ in range(100):
+            await asyncio.sleep(0.01)
+            if not self._ctc_query.filter(".active"):
+                break
+
         self.action_dump_state()
         self.exit()
 
@@ -339,8 +346,8 @@ class Pymodoro(App):
         await self._filter_based_on_search(event.search_str)
 
     async def on_text_input_value_after_blur(self, event: TextInput.ValueAfterBlur):
-        """check to see if description or linear issue matches a previously deleted
-        countdown timer component.
+        """check to see if description or linear issue matches either an existing
+        or previously deleted countdown timer component.
 
         if it does, replace this one with the previously deleted one
         """
