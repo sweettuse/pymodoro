@@ -69,8 +69,6 @@ class Pymodoro(App):
         ),
     ]
 
-    _currently_moving = var(False)
-
     def _create_new_timer(self) -> CountdownTimerComponent:
         return CountdownTimerComponent.create()
 
@@ -422,9 +420,6 @@ class Pymodoro(App):
 
     async def _move_timer(self, offset: int):
         """move timer container up or down in the list"""
-        if self._currently_moving:
-            return
-
         if offset not in {1, -1}:
             return
 
@@ -436,24 +431,19 @@ class Pymodoro(App):
             return
 
         new_idx = idx + offset
-        if not (0 <= new_idx <= len(ctcs) - 1):
+        if not (0 <= new_idx < len(ctcs)):
             return
 
-        ctc = ctcs[idx]
-        state = ctc.dump_state()
-        await ctc.stop()
-        new_ctc = CountdownTimerComponent.from_state(state)
         kw = {"before" if offset == -1 else "after": ctcs[new_idx]}
-        self._currently_moving = True
-        ctc.remove()
-        await self._add_timer(new_ctc, **kw)
+        ctc = ctcs[idx]
+        self.query_one("#timers").move_child(ctc, **kw)
+        self.call_after_refresh(ctc.scroll_visible)
 
     async def _add_timer(self, timer: CountdownTimerComponent, **kw):
         """add a timer to existing timers"""
         await self.query_one("#timers").mount(timer, **kw)
         timer.focus()
         timer.scroll_visible()
-        self.call_after_refresh(lambda: setattr(self, "_currently_moving", False))
         return timer
 
     def _debug(self, msg: Any):
