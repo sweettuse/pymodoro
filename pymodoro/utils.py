@@ -91,6 +91,12 @@ def exec_on_repeat(
 ):
     """decorator to enable exec'ing actions after a
     repeated number of calls in a certain amount of time
+
+    e.g. if the wrapped function is called two times within 250 ms, it will execute.
+    example:
+        it enables typing `dd` to delete a timer
+        works with and around the binding machinery of textual to enable repeated
+        keystrokes to cause an action
     """
     if not fn:
         return partial(exec_on_repeat, num_repeat=num_repeat, window_ms=window_ms)

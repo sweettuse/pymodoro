@@ -231,7 +231,7 @@ class Pymodoro(App):
         sb.value = ""
         sb.focus()
 
-    def action_delete_selected_timer(self):
+    async def action_delete_selected_timer(self):
         """rm the currently focused timer if there is one"""
         if not (focused := self._find_focused_or_focused_within()):
             return
@@ -250,6 +250,7 @@ class Pymodoro(App):
         else:
             to_focus = ctcs[idx + 1]
 
+        await ctc.stop()
         state = ctc.dump_state()
         state.status = "deleted"
         self._deleted.append(state)
@@ -489,7 +490,9 @@ class Pymodoro(App):
 
             # check current timers
             for ctc in self.query(CountdownTimerComponent):
-                if ctc is not event_ctc and _match(getter(ctc.state)["value"]):
+                if ctc is event_ctc:
+                    continue
+                if _match(getter(ctc.state)["value"]):
                     await ctc.stop()
                     state = ctc.dump_state()
                     await ctc.remove()
