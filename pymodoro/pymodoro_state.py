@@ -7,7 +7,7 @@ from dataclasses import asdict, dataclass
 from enum import Enum
 import json
 from pathlib import Path
-from typing import Iterable, Literal, TYPE_CHECKING, TypeAlias
+from typing import Callable, Iterable, Literal, TYPE_CHECKING, TypeAlias
 
 import pendulum
 
@@ -25,12 +25,15 @@ class EventStore:
 
     store = str(BASE_PATH / "events")
     in_mem_events = []
+    subscribers = []
 
     @classmethod
     def register(cls, d: dict):
         """log event dict to events file"""
         d["at"] = d.get("at", pendulum.now())
         cls.in_mem_events.append(d)
+        for cb in cls.subscribers:
+            cb(d)
         msg = json.dumps(d)
         with open(cls.store, "a") as f:
             f.write(msg + "\n")
@@ -41,10 +44,19 @@ class EventStore:
             return [cls._parse(l.strip()) for l in f]
 
     @classmethod
+    @cache
+    def load_cached(cls):
+        return cls.load()
+
+    @classmethod
     def _parse(cls, s: str) -> dict:
         res = json.loads(s)
         res["at"] = pendulum.parse(res["at"])  # type: ignore  # pylance so dumb - thinks `parse` is not exported but it is :(
         return res
+
+    @classmethod
+    def subscribe(cls, cb: Callable[[dict], None]):
+        cls.subscribers.append(cb)
 
 
 Status: TypeAlias = Literal["todo", "in_progress", "completed", "deleted"]
