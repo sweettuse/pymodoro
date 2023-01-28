@@ -92,9 +92,6 @@ class CountdownTimerComponent(Static, can_focus=True, can_focus_children=True):
             state = CountdownTimerState.new_default()
 
         self.state = state
-        time_spent_container = TimeSpentContainer.create(
-            state.id, self.state.total_seconds_completed
-        )
 
         yield Horizontal(
             # Caret(id='caret'),
@@ -108,7 +105,7 @@ class CountdownTimerComponent(Static, can_focus=True, can_focus_children=True):
                 ),
                 TimeInput.from_state(state.time_input_state),
                 ManualTimeAccounting.from_state(state.manual_accounting_state),
-                time_spent_container,
+                TimeSpentContainer.create(state.id, self.state.total_seconds_completed),
             ),
             Button("reset", id="reset", variant="default"),
         )
