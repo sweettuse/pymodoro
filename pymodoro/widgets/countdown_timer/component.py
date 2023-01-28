@@ -1,4 +1,5 @@
 from __future__ import annotations
+from abc import ABC, abstractmethod
 
 import asyncio
 from collections import deque
@@ -24,9 +25,7 @@ from textual.message import Message, MessageTarget
 from textual.widgets import Button, Header, Footer, Static, TextLog, Input
 from textual.containers import Horizontal, Vertical
 from textual.binding import Binding
-from utils import classproperty
-from stats.time_spent import get_elapsed_events
-from utils import format_time
+from widgets.countdown_timer.time_spent import TimeSpentContainer, TotalTimeSpent
 from pymodoro_state import CountdownTimerState, StateStore, EventStore
 from widgets.text_input import (
     LinearInput,
@@ -38,129 +37,6 @@ from widgets.text_input import (
 )
 
 from widgets.countdown_timer import CountdownTimer, CountdownTimerWidget
-
-
-class TimeSpent(Static):
-    prev_spent = reactive(0.0)
-    spent_in_current_period = reactive(0.0)
-
-    def _update(self, spent_in_current_period: float):
-        raise NotImplementedError
-
-    def watch_spent_in_current_period(self, val):
-        self._update(val)
-
-    def watch_prev_spent(self, _):
-        self._update(self.spent_in_current_period)
-
-
-class TotalTimeSpent(TimeSpent):
-    def __init__(self, prev_spent):
-        super().__init__(id="total")
-        self.prev_spent = prev_spent
-
-    def _update(self, spent_in_current_period: float):
-        rem = int(spent_in_current_period + self.prev_spent)
-        text = Align(format_time(rem), "center", vertical="middle")
-        res = Panel(text, title="spent")
-        self.update(res)
-
-
-class TimeSpentWeek(TimeSpent):
-    def __init__(self, component_id: str):
-        super().__init__(id="time_spent_week")
-        self.component_id = component_id
-        self.events = self._init_events(component_id)
-        self.prev_spent = 0.0
-        self._update_prev_spent(force=True)
-        EventStore.subscribe(self.on_new_event)
-
-    @classproperty
-    def start_dt(cls):
-        return pendulum.now().subtract(weeks=1)
-
-    @classmethod
-    def _init_events(cls, component_id: str):
-        events = get_elapsed_events()
-        return deque(e for e in events if e["component_id"] == component_id)
-
-    def on_new_event(self, d: dict):
-        if not self._is_event_relevant(d):
-            return
-        self.events.append(d)
-        self._update_prev_spent(force=True)
-
-    def _is_event_relevant(self, d: dict):
-        return d.get("component_id") == self.component_id and d["name"] in {
-            "stopped",
-            "manually_accounted_time",
-        }
-
-    def _update(self, spent_in_current_period: float):
-        self._update_prev_spent()
-        self.app._debug(f"huh: {spent_in_current_period}, {self.prev_spent}")
-        t = format_time(int(spent_in_current_period + self.prev_spent))
-        text = Align(t, "center", vertical="middle")
-        res = Panel(text, title="spent(w)")
-        self.update(res)
-
-    def _update_prev_spent(self, *, force=False):
-        if not self.events:
-            return
-
-        old_found = 0
-        min_time = self.start_dt
-        for e in self.events:
-            if e["at"] > min_time:
-                break
-            old_found += 1
-
-        if not (old_found or force):
-            return
-
-        for _ in range(old_found):
-            self.events.popleft()
-
-        self.prev_spent = sum(e["elapsed"] for e in self.events)
-
-
-class TimeSpentContainer(Static):
-    spent_in_current_period = reactive(0.0)
-    current_time_spent_ptr: TimeSpent = reactive(None)
-    time_spents: list[TimeSpent] = var(list)
-    component_id: str = var("")
-
-    def compose(self) -> ComposeResult:
-        return iter(self.time_spents)
-
-    @classmethod
-    def create(cls, component_id: str, prev_spent: float) -> TimeSpentContainer:
-        res = cls()
-        res.component_id = component_id
-
-        res.time_spents = [
-            TotalTimeSpent(prev_spent),
-            TimeSpentWeek(component_id),
-        ]
-        res.current_time_spent_ptr = res.time_spents[0]
-        return res
-
-    def watch_current_time_spent_ptr(self, time_spent: Type[TimeSpent]):
-        """only display the `current_time_spent_ptr`; hide all others"""
-        self.app._debug(f"ptr: {time_spent}")
-        for ts in self.time_spents:
-            ts.set_class(ts is not time_spent, "hidden")
-
-    def watch_spent_in_current_period(self, elapsed: float):
-        for ts in self.time_spents:
-            ts.spent_in_current_period = elapsed
-
-    def on_click(self):
-        """switch to next time spent type"""
-        idx = self.time_spents.index(self.current_time_spent_ptr)
-        next_idx = (idx + 1) % len(self.time_spents)
-        self.app._debug(f"click: {idx}, {next_idx}")
-        self.current_time_spent_ptr = self.time_spents[next_idx]
 
 
 class TimeGroup(Vertical):

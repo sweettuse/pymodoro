@@ -30,11 +30,12 @@ class EventStore:
     @classmethod
     def register(cls, d: dict):
         """log event dict to events file"""
-        d["at"] = d.get("at", pendulum.now())
-        cls.in_mem_events.append(d)
-        for cb in cls.subscribers:
-            cb(d)
         msg = json.dumps(d)
+
+        d["at"] = pendulum.parse(str(d.get("at", pendulum.now())))
+        cls.in_mem_events.append(d)
+        cls._notify_subscribers(d)
+
         with open(cls.store, "a") as f:
             f.write(msg + "\n")
 
@@ -57,6 +58,11 @@ class EventStore:
     @classmethod
     def subscribe(cls, cb: Callable[[dict], None]):
         cls.subscribers.append(cb)
+
+    @classmethod
+    def _notify_subscribers(cls, d):
+        for cb in cls.subscribers:
+            cb(d)
 
 
 Status: TypeAlias = Literal["todo", "in_progress", "completed", "deleted"]
