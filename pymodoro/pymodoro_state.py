@@ -1,5 +1,6 @@
 from __future__ import annotations
 from functools import cache, wraps
+from operator import itemgetter
 import os
 
 from contextlib import suppress
@@ -48,6 +49,17 @@ class EventStore:
     @cache
     def load_cached(cls):
         return cls.load()
+
+    @classmethod
+    @cache
+    def get_elapsed_events(cls):
+        """return events from file that affect amount of time elapsed for a timer"""
+        events = cls.load_cached()
+        event_types = {"stopped", "manually_accounted_time"}
+        return sorted(
+            (e.copy() for e in events if e.get("name") in event_types),
+            key=itemgetter("at"),
+        )
 
     @classmethod
     def _parse(cls, s: str) -> dict:

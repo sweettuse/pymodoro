@@ -20,9 +20,7 @@ from textual.message import Message, MessageTarget
 from textual.widgets import Button, Header, Footer, Static, TextLog, Input
 from textual.containers import Horizontal, Vertical
 from textual.binding import Binding
-from utils import classproperty
-from stats.time_spent import get_elapsed_events
-from utils import format_time
+from utils import classproperty, format_time
 from pymodoro_state import CountdownTimerState, StateStore, EventStore
 
 
@@ -77,7 +75,7 @@ class TimeSpentWindowed(TimeSpent):
 
     @classmethod
     def _init_events(cls, component_id: str):
-        events = get_elapsed_events()
+        events = EventStore.get_elapsed_events()
         return deque(e for e in events if e["component_id"] == component_id)
 
     def on_new_event(self, d: dict):
@@ -170,37 +168,54 @@ class TimeSpentContainer(Static):
 
     spent_in_current_period = reactive(0.0)
     current_time_spent_ptr: TimeSpent = reactive(None)
-    time_spents: list[TimeSpent] = var(list)
+    time_spents: dict[str, TimeSpent] = var(dict)
     component_id: str = var("")
+    time_spent_to_next_map: dict[str, str] = var(dict)
 
     def compose(self) -> ComposeResult:
-        return iter(self.time_spents)
+        return iter(self.time_spents.values())
 
     @classmethod
     def create(cls, component_id: str, prev_spent: float) -> TimeSpentContainer:
+        """register `TimeSpent` objects here"""
         res = cls()
         res.component_id = component_id
 
-        res.time_spents = [
+        for ts in (
             TotalTimeSpent(prev_spent),
             TimeSpentTotal(component_id),
             TimeSpentWeek(component_id),
             TimeSpentDay(component_id),
-        ]
-        res.current_time_spent_ptr = res.time_spents[0]
+        ):
+            res._add_time_spent(ts)
+
+        res.current_time_spent_ptr = next(iter(res.time_spents.values()))
+        res.time_spent_to_next_map = res._init_time_spent_to_next_map(res.time_spents)
         return res
+
+    def _add_time_spent(self, ts: TimeSpent):
+        self.time_spents[ts.id] = ts
+
+    @staticmethod
+    def _init_time_spent_to_next_map(keys):
+        d = deque(keys)
+        d.rotate(-1)
+        return dict(zip(keys, d))
 
     def watch_current_time_spent_ptr(self, time_spent: Type[TimeSpent]):
         """only display the `current_time_spent_ptr`; hide all others"""
-        for ts in self.time_spents:
+        for ts in self.time_spents.values():
             ts.set_class(ts is not time_spent, "hidden")
 
     def watch_spent_in_current_period(self, elapsed: float):
-        for ts in self.time_spents:
+        for ts in self.time_spents.values():
             ts.spent_in_current_period = elapsed
 
     def on_click(self):
-        """switch to next time spent type"""
-        idx = self.time_spents.index(self.current_time_spent_ptr)
-        next_idx = (idx + 1) % len(self.time_spents)
-        self.current_time_spent_ptr = self.time_spents[next_idx]
+        """switch to next time spent instance"""
+        next_id = self.time_spent_to_next_map[self.current_time_spent_ptr.id]
+        for tsc in self.app.query(TimeSpentContainer):
+            tsc._select_next_time_spent(next_id)
+
+    def _select_next_time_spent(self, id):
+        self.current_time_spent_ptr = self.time_spents[id]
