@@ -33,6 +33,7 @@ from widgets.global_timer import (
 )
 from widgets.configuration import ConfigForm
 from widgets.countdown_timer import CountdownTimerComponent, CountdownTimerWidget
+from widgets.countdown_timer.time_spent import TimeSpentContainer, TimeSpentTotal
 from pymodoro_state import StateStore, CountdownTimerState
 
 
@@ -51,8 +52,8 @@ class Pymodoro(App):
         HiddenBinding("K", "move_up", "move widget up"),
         Binding("e", "edit_time", "edit remaining", key_display="e"),
         Binding("space", "start_or_stop", "start or stop", key_display="space"),
-        Binding("o", "add_new_timer_after", "add timer", key_display="o/O"),
-        HiddenBinding("O", "add_new_timer_before", "add timer"),
+        Binding("o", "add_new_timer_after", "new timer", key_display="o/O"),
+        HiddenBinding("O", "add_new_timer_before", "new timer"),
         Binding("d", "delete_selected_timer_dd", "del timer", key_display="dd"),
         Binding("U", "undo_delete_timer", "undo del", key_display="U"),
         Binding("/", "focus_search", "search", key_display="/"),
@@ -62,12 +63,10 @@ class Pymodoro(App):
         HiddenBinding("G", "focus_bottom_ctc", "focus bottom"),
         HiddenBinding("p", "add_deleted_after", "add recently deleted timer after"),
         HiddenBinding("P", "add_deleted_before", "add recently deleted timer before"),
-        HiddenBinding(
-            "m",
-            "add_manually_accounted_time",
-            "add time you forgot to start the timer for",
-        ),
+        Binding("m", "add_manually_accounted_time", "add time", key_display="m"),
     ]
+
+    current_time_window_id: str = reactive(TimeSpentTotal.window_id)
 
     def _create_new_timer(self) -> CountdownTimerComponent:
         return CountdownTimerComponent.create()
@@ -86,6 +85,9 @@ class Pymodoro(App):
         yield ConfigForm(classes="hidden")
         yield Container(*timers, id="timers")
         yield Footer()
+        self.call_after_refresh(
+            setattr, self, "current_time_window_id", TimeSpentTotal.window_id
+        )
 
     @property
     @cache
@@ -109,6 +111,14 @@ class Pymodoro(App):
         idx, ctcs = focused
         if idx is not None:
             return ctcs[idx]
+
+    def watch_current_time_window_id(self, window_id):
+        self._debug(f"{window_id=}")
+        if not window_id:
+            return
+
+        for tsc in self.query(TimeSpentContainer):
+            tsc.set_time_spent(window_id)
 
     # ==========================================================================
     # actions

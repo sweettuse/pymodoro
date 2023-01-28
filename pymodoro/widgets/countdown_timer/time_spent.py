@@ -2,6 +2,7 @@ from __future__ import annotations
 from abc import ABC, abstractmethod
 
 from collections import deque
+from itertools import chain, takewhile
 
 from typing import Any, Optional, Type
 import pendulum
@@ -39,18 +40,6 @@ class TimeSpent(Static):
         self._update(self.spent_in_current_period)
 
 
-class TotalTimeSpent(TimeSpent):
-    def __init__(self, prev_spent):
-        super().__init__(id="total")
-        self.prev_spent = prev_spent
-
-    def _update(self, spent_in_current_period: float):
-        rem = int(spent_in_current_period + self.prev_spent)
-        text = Align(format_time(rem), "center", vertical="middle")
-        res = Panel(text, title="spent")
-        self.update(res)
-
-
 class TimeSpentWindowed(TimeSpent):
     """base class for looking at time spent over different windows
 
@@ -58,70 +47,71 @@ class TimeSpentWindowed(TimeSpent):
     """
 
     def __init__(self, component_id: str):
-        super().__init__(id=type(self).__name__)
+        super().__init__(id=self.window_id)
         self.component_id = component_id
-        self.events = self._init_events(component_id)
-        self.prev_spent = 0.0
-        self._update_prev_spent(force=True)
+        self.events = self._init_events()
+        self._prune(update_prev_spent=False)
+        self.prev_spent = sum(float(e["elapsed"]) for e in self.events)
+        self._prune_regularly = self.set_interval(60, self._prune)
         EventStore.subscribe(self.on_new_event)
 
     @classproperty
     def window_start(cls) -> pendulum.DateTime:
+        """what datetime is the earliest event this window should consider.
+
+        can/should be dynamic"""
         raise NotImplementedError
 
     @classproperty
     def panel_title(cls) -> str:
+        """how should this be displayed in the UI"""
         raise NotImplementedError
 
-    @classmethod
-    def _init_events(cls, component_id: str):
-        events = EventStore.get_elapsed_events()
-        return deque(e for e in events if e["component_id"] == component_id)
+    @classproperty
+    def window_id(cls) -> str:
+        return cls.__name__
+
+    def _init_events(self):
+        events = chain(
+            EventStore.load_cached(),
+            EventStore.in_mem_events,
+        )
+        return deque(filter(self._is_event_relevant, events))
 
     def on_new_event(self, d: dict):
         if not self._is_event_relevant(d):
             return
+
         self.events.append(d)
-        self._update_prev_spent(force=True)
+        self.prev_spent += float(d["elapsed"])
+        self.spent_in_current_period = 0.0
 
     def _is_event_relevant(self, d: dict):
         return (
-            d.get("component_id") == self.component_id
-            and d["name"] in { "stopped", "manually_accounted_time"}
+            d["component_id"] == self.component_id
+            and d["name"] in {"stopped", "manually_accounted_time"}
             and d["at"] >= self.window_start
         )  # fmt: skip
 
     def _update(self, spent_in_current_period: float):
         """update the display"""
-        self._update_prev_spent()
+        self._prune()
         t = format_time(int(spent_in_current_period + self.prev_spent))
         text = Align(t, "center", vertical="middle")
         res = Panel(text, title=self.panel_title)
         self.update(res)
 
-    def _update_prev_spent(self, *, force=False):
-        """sum up how much time has elapsed in events that have occured between
-        `window_start` and now
-
-        update `prev_spent` with that value
-        """
-        if not self.events:
-            return
-
-        old_found = 0
+    def _prune(self, *, update_prev_spent=True):
+        """remove old events and update prev_spent if necessary"""
         min_time = self.window_start
-        for e in self.events:
-            if e["at"] > min_time:
-                break
-            old_found += 1
+        to_prune = list(takewhile(lambda e: e["at"] <= min_time, self.events))
+        to_rm = sum(float(e["elapsed"]) for e in to_prune) or 0.0
 
-        if not (old_found or force):
-            return
-
-        for _ in range(old_found):
+        for _ in range(len(to_prune)):
             self.events.popleft()
 
-        self.prev_spent = sum(float(e["elapsed"]) for e in self.events)
+        if to_rm and update_prev_spent:
+            self.prev_spent -= to_rm
 
 
 class TimeSpentTotal(TimeSpentWindowed):
@@ -136,7 +126,7 @@ class TimeSpentTotal(TimeSpentWindowed):
 
     @classproperty
     def panel_title(cls):
-        return "spent(tot)"
+        return "spent"
 
 
 class TimeSpentWeek(TimeSpentWindowed):
@@ -149,6 +139,18 @@ class TimeSpentWeek(TimeSpentWindowed):
     @classproperty
     def panel_title(cls):
         return "spent(w)"
+
+
+class TimeSpentWorkWeek(TimeSpentWindowed):
+    """how much time spent over last week"""
+
+    @classproperty
+    def window_start(cls):
+        return pendulum.now().start_of("week")
+
+    @classproperty
+    def panel_title(cls):
+        return "spent(ww)"
 
 
 class TimeSpentDay(TimeSpentWindowed):
@@ -176,21 +178,21 @@ class TimeSpentContainer(Static):
         return iter(self.time_spents.values())
 
     @classmethod
-    def create(cls, component_id: str, prev_spent: float) -> TimeSpentContainer:
+    def create(cls, component_id: str) -> TimeSpentContainer:
         """register `TimeSpent` objects here"""
         res = cls()
         res.component_id = component_id
 
         for ts in (
-            TotalTimeSpent(prev_spent),
             TimeSpentTotal(component_id),
             TimeSpentWeek(component_id),
+            TimeSpentWorkWeek(component_id),
             TimeSpentDay(component_id),
         ):
             res._add_time_spent(ts)
 
-        res.current_time_spent_ptr = next(iter(res.time_spents.values()))
         res.time_spent_to_next_map = res._init_time_spent_to_next_map(res.time_spents)
+        res.set_time_spent(res.app.current_time_window_id)
         return res
 
     def _add_time_spent(self, ts: TimeSpent):
@@ -201,6 +203,9 @@ class TimeSpentContainer(Static):
         d = deque(keys)
         d.rotate(-1)
         return dict(zip(keys, d))
+
+    def set_time_spent(self, window_id: str):
+        self.current_time_spent_ptr = self.time_spents[window_id]
 
     def watch_current_time_spent_ptr(self, time_spent: Type[TimeSpent]):
         """only display the `current_time_spent_ptr`; hide all others"""
@@ -213,9 +218,6 @@ class TimeSpentContainer(Static):
 
     def on_click(self):
         """switch to next time spent instance"""
-        next_id = self.time_spent_to_next_map[self.current_time_spent_ptr.id]
-        for tsc in self.app.query(TimeSpentContainer):
-            tsc._select_next_time_spent(next_id)
-
-    def _select_next_time_spent(self, id):
-        self.current_time_spent_ptr = self.time_spents[id]
+        self.app.current_time_window_id = self.time_spent_to_next_map[
+            self.current_time_spent_ptr.id
+        ]

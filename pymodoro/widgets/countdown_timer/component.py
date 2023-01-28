@@ -25,7 +25,7 @@ from textual.message import Message, MessageTarget
 from textual.widgets import Button, Header, Footer, Static, TextLog, Input
 from textual.containers import Horizontal, Vertical
 from textual.binding import Binding
-from widgets.countdown_timer.time_spent import TimeSpentContainer, TotalTimeSpent
+from widgets.countdown_timer.time_spent import TimeSpentContainer
 from pymodoro_state import CountdownTimerState, StateStore, EventStore
 from widgets.text_input import (
     LinearInput,
@@ -105,7 +105,7 @@ class CountdownTimerComponent(Static, can_focus=True, can_focus_children=True):
                 ),
                 TimeInput.from_state(state.time_input_state),
                 ManualTimeAccounting.from_state(state.manual_accounting_state),
-                TimeSpentContainer.create(state.id, self.state.total_seconds_completed),
+                TimeSpentContainer.create(state.id),
             ),
             Button("reset", id="reset", variant="default"),
         )
@@ -165,10 +165,7 @@ class CountdownTimerComponent(Static, can_focus=True, can_focus_children=True):
         """deactivate timer and relevant time spent fields"""
         self.log(f"{event.sender} timer stopped")
         self.state.total_seconds_completed += event.elapsed
-        tts = self.query_one(TotalTimeSpent)
-        tts.prev_spent += event.elapsed
-
-        self.query_one(TimeSpentContainer).spent_in_current_period = 0.0
+        # self.query_one(TimeSpentContainer).spent_in_current_period = 0.0
         self._set_active(active=False)
 
     async def on_countdown_timer_widget_completed(
@@ -198,7 +195,6 @@ class CountdownTimerComponent(Static, can_focus=True, can_focus_children=True):
         self,
         event: ManualTimeAccounting.AccountedTime,
     ):
-        self.query_one(TotalTimeSpent).prev_spent += event.elapsed
         self.state.total_seconds_completed += event.elapsed
         self.exit_manually_accounting_for_time()
         self.focus()

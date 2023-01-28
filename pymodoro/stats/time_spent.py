@@ -46,6 +46,7 @@ def get_elapsed_events() -> list[dict]:
 def _explore_missing():
     events = EventStore.load_cached()
     comp_id = "countdown_timer_container_1d221fc7-d747-4022-b23f-0e6c654424a5"
+    comp_id = "countdown_timer_container_87c2f2dc-de53-482c-9224-914d9552d597"
     return sorted(
         (e.copy() for e in events if e["component_id"] == comp_id), key=itemgetter("at")
     )
@@ -70,7 +71,11 @@ def as_df():
 
 
 def main():
-    print(_explore_missing())
+    events = _explore_missing()
+    print(events)
+    print(sum(e.get("elapsed", 0.0) for e in events))
+
+    return
     comp_id = "countdown_timer_container_1d221fc7-d747-4022-b23f-0e6c654424a5"
     events = get_elapsed_events()
     print([e for e in events if e["component_id"] == comp_id])
