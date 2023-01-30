@@ -1,11 +1,15 @@
 from __future__ import annotations
+from abc import ABC, abstractmethod
 
 import asyncio
+from collections import deque
 from enum import Enum
 from functools import partial
+from itertools import takewhile
 
 from typing import Any, Optional, Type
 from uuid import uuid4
+import pendulum
 from textual.app import App, ComposeResult
 
 from textual.containers import Container
@@ -21,8 +25,8 @@ from textual.message import Message, MessageTarget
 from textual.widgets import Button, Header, Footer, Static, TextLog, Input
 from textual.containers import Horizontal, Vertical
 from textual.binding import Binding
-from utils import format_time
-from pymodoro_state import CountdownTimerState, StateStore
+from widgets.countdown_timer.time_spent import TimeSpentContainer
+from pymodoro_state import CountdownTimerState, StateStore, EventStore
 from widgets.text_input import (
     LinearInput,
     TextInput,
@@ -33,20 +37,6 @@ from widgets.text_input import (
 )
 
 from widgets.countdown_timer import CountdownTimer, CountdownTimerWidget
-
-
-class TotalTimeSpent(Static):
-    spent_in_current_period = reactive(0.0)
-    prev_spent = reactive(0.0)
-
-    def watch_spent_in_current_period(self, new_amount):
-        rem = int(new_amount + self.prev_spent)
-        text = Align(format_time(rem), "center", vertical="middle")
-        res = Panel(text, title="spent")
-        self.update(res)
-
-    def watch_prev_spent(self, _):
-        self.watch_spent_in_current_period(self.spent_in_current_period)
 
 
 class TimeGroup(Vertical):
@@ -103,8 +93,6 @@ class CountdownTimerComponent(Static, can_focus=True, can_focus_children=True):
 
         self.state = state
 
-        tts = TotalTimeSpent(id="total")
-        tts.prev_spent = self.state.total_seconds_completed
         yield Horizontal(
             # Caret(id='caret'),
             LinearInput.from_state(state.linear_state),
@@ -117,7 +105,7 @@ class CountdownTimerComponent(Static, can_focus=True, can_focus_children=True):
                 ),
                 TimeInput.from_state(state.time_input_state),
                 ManualTimeAccounting.from_state(state.manual_accounting_state),
-                tts,
+                TimeSpentContainer.create(state.id),
             ),
             Button("reset", id="reset", variant="default"),
         )
@@ -177,9 +165,7 @@ class CountdownTimerComponent(Static, can_focus=True, can_focus_children=True):
         """deactivate timer and relevant time spent fields"""
         self.log(f"{event.sender} timer stopped")
         self.state.total_seconds_completed += event.elapsed
-        tts = self.query_one(TotalTimeSpent)
-        tts.prev_spent += event.elapsed
-        tts.spent_in_current_period = 0
+        # self.query_one(TimeSpentContainer).spent_in_current_period = 0.0
         self._set_active(active=False)
 
     async def on_countdown_timer_widget_completed(
@@ -195,7 +181,7 @@ class CountdownTimerComponent(Static, can_focus=True, can_focus_children=True):
         event: CountdownTimerWidget.NewSecond,
     ):
         """update total time spent with how long this current timer has been active"""
-        self.query_one(TotalTimeSpent).spent_in_current_period = event.elapsed
+        self.query_one(TimeSpentContainer).spent_in_current_period = event.elapsed
 
     async def on_time_input_new_total_seconds(self, msg: TimeInput.NewTotalSeconds):
         """handle when amount remaining is changed"""
@@ -209,8 +195,6 @@ class CountdownTimerComponent(Static, can_focus=True, can_focus_children=True):
         self,
         event: ManualTimeAccounting.AccountedTime,
     ):
-        tts = self.query_one(TotalTimeSpent)
-        tts.prev_spent += event.elapsed
         self.state.total_seconds_completed += event.elapsed
         self.exit_manually_accounting_for_time()
         self.focus()
@@ -260,7 +244,7 @@ class CountdownTimerComponent(Static, can_focus=True, can_focus_children=True):
     ) -> TimeInputBase:
         """hide/show relevant widgets when editing remaining time or manually accounting for time spent"""
         self.query_one(CountdownTimerWidget).set_class(editing, "hidden")
-        self.query_one(TotalTimeSpent).set_class(editing, "hidden")
+        self.query_one(TimeSpentContainer).set_class(editing, "hidden")
         (ti := self.query_one(time_class)).set_class(not editing, "hidden")
         return ti
 

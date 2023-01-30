@@ -60,8 +60,8 @@ TimeGroup {
   width: $timer_width;
 }
 
-TotalTimeSpent {
-  width: 16;
+TimeSpent {
+  width: $timer_width;
   content-align: center middle;
   height: 3;
   /* color: blue; */

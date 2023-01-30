@@ -159,7 +159,7 @@ class TimeInput(TimeInputBase):
 
 
 class ManualTimeAccounting(TimeInputBase):
-    """class to manually account for time that you might have missed"""
+    """class to manually account for time that you missed starting a timer for"""
 
     class AccountedTime(EventMessage):
         def __init__(self, sender: MessageTarget, elapsed_secs: float):

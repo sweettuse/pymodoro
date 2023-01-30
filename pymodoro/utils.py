@@ -74,16 +74,25 @@ def format_time(num_secs: int | float) -> str:
         seconds_fmt = "05.2f"
         decimal_padding = ""
 
+    m = -1 if num_secs < 0 else 1
+    num_secs *= m
+
     minutes, seconds = divmod(num_secs, 60)
     minutes = int(minutes)
     hours, minutes = divmod(minutes, 60)
-    hours_str = f"{hours:3d}:" if hours else "    "
+    if hours:
+        hours *= m
+        hours_str = f"{hours:3d}:"
+        minutes_str = f"{minutes:02d}"
+    else:
+        hours_str = "    "
+        minutes *= m
+        if minutes or m == 1:
+            minutes_str = f"{minutes:2d}"
+        else:
+            minutes_str = "-0"
 
-    minutes_fmt = "02d" if hours else "2d"
-
-    return (
-        f"{hours_str}{minutes:{minutes_fmt}}:{seconds:{seconds_fmt}}{decimal_padding}"
-    )
+    return f"{hours_str}{minutes_str}:{seconds:{seconds_fmt}}{decimal_padding}"
 
 
 def exec_on_repeat(
@@ -92,7 +101,9 @@ def exec_on_repeat(
     """decorator to enable exec'ing actions after a
     repeated number of calls in a certain amount of time
 
-    e.g. if the wrapped function is called two times within 250 ms, it will execute.
+    e.g. if the function is called two times within 250 ms, it will execute the wrapped
+        function
+
     example:
         it enables typing `dd` to delete a timer
         works with and around the binding machinery of textual to enable repeated
@@ -124,3 +135,11 @@ def exec_on_repeat(
         return fn(*a, **kw)
 
     return wrapper
+
+
+class classproperty:
+    def __init__(self, f):
+        self.f = f
+
+    def __get__(self, _, cls):
+        return self.f(cls)

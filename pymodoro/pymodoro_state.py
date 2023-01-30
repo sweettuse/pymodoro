@@ -1,5 +1,6 @@
 from __future__ import annotations
 from functools import cache, wraps
+from operator import itemgetter
 import os
 
 from contextlib import suppress
@@ -7,7 +8,7 @@ from dataclasses import asdict, dataclass
 from enum import Enum
 import json
 from pathlib import Path
-from typing import Iterable, Literal, TYPE_CHECKING, TypeAlias
+from typing import Callable, Iterable, Literal, TYPE_CHECKING, TypeAlias
 
 import pendulum
 
@@ -25,13 +26,17 @@ class EventStore:
 
     store = str(BASE_PATH / "events")
     in_mem_events = []
+    subscribers = []
 
     @classmethod
     def register(cls, d: dict):
         """log event dict to events file"""
-        d["at"] = d.get("at", pendulum.now())
-        cls.in_mem_events.append(d)
         msg = json.dumps(d)
+
+        d["at"] = pendulum.parse(str(d.get("at", pendulum.now())))
+        cls.in_mem_events.append(d)
+        cls._notify_subscribers(d)
+
         with open(cls.store, "a") as f:
             f.write(msg + "\n")
 
@@ -41,10 +46,35 @@ class EventStore:
             return [cls._parse(l.strip()) for l in f]
 
     @classmethod
+    @cache
+    def load_cached(cls):
+        return cls.load()
+
+    @classmethod
+    @cache
+    def get_elapsed_events(cls):
+        """return events from file that affect amount of time elapsed for a timer"""
+        events = cls.load_cached()
+        event_types = {"stopped", "manually_accounted_time"}
+        return sorted(
+            (e.copy() for e in events if e.get("name") in event_types),
+            key=itemgetter("at"),
+        )
+
+    @classmethod
     def _parse(cls, s: str) -> dict:
         res = json.loads(s)
         res["at"] = pendulum.parse(res["at"])  # type: ignore  # pylance so dumb - thinks `parse` is not exported but it is :(
         return res
+
+    @classmethod
+    def subscribe(cls, cb: Callable[[dict], None]):
+        cls.subscribers.append(cb)
+
+    @classmethod
+    def _notify_subscribers(cls, d):
+        for cb in cls.subscribers:
+            cb(d)
 
 
 Status: TypeAlias = Literal["todo", "in_progress", "completed", "deleted"]
