@@ -66,6 +66,7 @@ class Pymodoro(App):
         Binding("m", "add_manually_accounted_time", "add time", key_display="m"),
     ]
 
+    # global id of the type of time window we should display for spent time
     current_time_window_id: str = reactive(TimeSpentTotal.window_id)
 
     def _create_new_timer(self) -> CountdownTimerComponent:
@@ -113,12 +114,13 @@ class Pymodoro(App):
             return ctcs[idx]
 
     def watch_current_time_window_id(self, window_id):
+        """change displayed time based on `window_id`"""
         self._debug(f"{window_id=}")
         if not window_id:
             return
 
         for tsc in self.query(TimeSpentContainer):
-            tsc.set_time_spent(window_id)
+            tsc.set_displayed_time(window_id)
 
     # ==========================================================================
     # actions

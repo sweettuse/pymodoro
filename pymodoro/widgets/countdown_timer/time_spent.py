@@ -59,7 +59,8 @@ class TimeSpentWindowed(TimeSpent):
     def window_start(cls) -> pendulum.DateTime:
         """what datetime is the earliest event this window should consider.
 
-        can/should be dynamic"""
+        can/should be dynamic
+        """
         raise NotImplementedError
 
     @classproperty
@@ -72,10 +73,7 @@ class TimeSpentWindowed(TimeSpent):
         return cls.__name__
 
     def _init_events(self):
-        events = chain(
-            EventStore.load_cached(),
-            EventStore.in_mem_events,
-        )
+        events = chain(EventStore.load_cached(), EventStore.in_mem_events)
         return deque(filter(self._is_event_relevant, events))
 
     def on_new_event(self, d: dict):
@@ -105,7 +103,7 @@ class TimeSpentWindowed(TimeSpent):
         """remove old events and update prev_spent if necessary"""
         min_time = self.window_start
         to_prune = list(takewhile(lambda e: e["at"] <= min_time, self.events))
-        to_rm = sum(float(e["elapsed"]) for e in to_prune) or 0.0
+        to_rm = sum(float(e["elapsed"]) for e in to_prune)
 
         for _ in range(len(to_prune)):
             self.events.popleft()
@@ -130,7 +128,7 @@ class TimeSpentTotal(TimeSpentWindowed):
 
 
 class TimeSpentWeek(TimeSpentWindowed):
-    """how much time spent over last week"""
+    """how much time spent over last 7 days"""
 
     @classproperty
     def window_start(cls):
@@ -142,7 +140,7 @@ class TimeSpentWeek(TimeSpentWindowed):
 
 
 class TimeSpentWorkWeek(TimeSpentWindowed):
-    """how much time spent over last week"""
+    """how much time spent over last work week"""
 
     @classproperty
     def window_start(cls):
@@ -192,7 +190,7 @@ class TimeSpentContainer(Static):
             res._add_time_spent(ts)
 
         res.time_spent_to_next_map = res._init_time_spent_to_next_map(res.time_spents)
-        res.set_time_spent(res.app.current_time_window_id)
+        res.set_displayed_time(res.app.current_time_window_id)
         return res
 
     def _add_time_spent(self, ts: TimeSpent):
@@ -204,7 +202,8 @@ class TimeSpentContainer(Static):
         d.rotate(-1)
         return dict(zip(keys, d))
 
-    def set_time_spent(self, window_id: str):
+    def set_displayed_time(self, window_id: str):
+        """update which time is displayed"""
         self.current_time_spent_ptr = self.time_spents[window_id]
 
     def watch_current_time_spent_ptr(self, time_spent: Type[TimeSpent]):
