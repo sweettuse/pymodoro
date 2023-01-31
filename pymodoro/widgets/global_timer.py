@@ -21,6 +21,7 @@ from textual.message import Message, MessageTarget
 from textual.widgets import Button, Header, Footer, Static, TextLog, Input, Placeholder
 from textual.containers import Horizontal
 from textual.binding import Binding
+from widgets.countdown_timer.time_spent import TimeSpentContainer
 from widgets.text_input_orig import TextInputOrig
 from utils import format_time
 from widgets.countdown_timer.widget import CountdownTimerWidget
@@ -145,6 +146,11 @@ class SearchBox(Input):
     async def watch_value(self, value):
         await self.emit(self.Search(self, value))
 
+class SearchAndTimeSpent(Static):
+    def compose(self) -> ComposeResult:
+        yield TimeSpentContainer.create('')
+        yield SearchBox(placeholder="search")
+
 
 class GlobalTimerComponent(Static):
     """top component"""
@@ -152,7 +158,7 @@ class GlobalTimerComponent(Static):
     def compose(self) -> ComposeResult:
         yield GlobalTimerWidget()
         yield DL
-        yield SearchBox(placeholder="search")
+        yield SearchAndTimeSpent()
 
 
 class GlobalTimerApp(App):

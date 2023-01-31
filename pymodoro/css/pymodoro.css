@@ -23,9 +23,14 @@ GlobalTimerWidget {
     height: 100%;
 }
 
+SearchAndTimeSpent {
+  margin-top: 8;
+  content-align: right bottom;
+}
+
 SearchBox {
   height: 3;
-  margin-top: 11;
+  /* margin-top: ; */
   content-align: right bottom;
   border: solid darkolivegreen;
 }

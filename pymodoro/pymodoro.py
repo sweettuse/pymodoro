@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import asyncio
+from contextlib import suppress
 from datetime import datetime
 from functools import cache, partial
 from itertools import chain
@@ -342,6 +343,7 @@ class Pymodoro(App):
     ):
         """tick the global timer"""
         await self._update_global_timer(event)
+        self.query_one(GlobalTimerComponent).query_one(TimeSpentContainer).spent_in_current_period = event.elapsed
 
     async def on_countdown_timer_widget_completed(
         self, event: CountdownTimerWidget.Completed
@@ -465,7 +467,8 @@ class Pymodoro(App):
         needs to be enabled in `pymodoro.css` - comment out `display: none`
         """
         now = datetime.now().replace(microsecond=0).time()
-        self.query_one(DebugLog).write(f"{now} - {msg}")
+        with suppress(Exception):
+            self.query_one(DebugLog).write(f"{now} - {msg}")
 
     async def _filter_based_on_search(self, search_str: str):
         """hide classes that don't match the filter"""

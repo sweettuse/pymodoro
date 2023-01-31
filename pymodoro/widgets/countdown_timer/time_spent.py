@@ -46,7 +46,7 @@ class TimeSpentWindowed(TimeSpent):
     just implement `window_start` and `panel_title` and you're good to go
     """
 
-    def __init__(self, component_id: str):
+    def __init__(self, component_id: str | None):
         super().__init__(id=self.window_id)
         self.component_id = component_id
         self.events = self._init_events()
@@ -86,7 +86,7 @@ class TimeSpentWindowed(TimeSpent):
 
     def _is_event_relevant(self, d: dict):
         return (
-            d["component_id"] == self.component_id
+            (not self.component_id or d["component_id"] == self.component_id)
             and d["name"] in {"stopped", "manually_accounted_time"}
             and d["at"] >= self.window_start
         )  # fmt: skip
