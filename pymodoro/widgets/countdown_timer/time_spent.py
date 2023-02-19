@@ -34,9 +34,11 @@ class TimeSpent(Static):
         raise NotImplementedError
 
     def watch_spent_in_current_period(self, val):
+        # self.app._debug(f"spent_in_current_period {val=}")
         self._update(val)
 
     def watch_prev_spent(self, _):
+        # self.app._debug(f"prev_spent {_=} {self.spent_in_current_period}")
         self._update(self.spent_in_current_period)
 
 
@@ -203,7 +205,7 @@ class TimeSpentContainer(Static):
         return dict(zip(keys, d))
 
     def set_displayed_time(self, window_id: str):
-        """update which time is displayed"""
+        """update which time spent is displayed"""
         self.current_time_spent_ptr = self.time_spents[window_id]
 
     def watch_current_time_spent_ptr(self, time_spent: Type[TimeSpent]):

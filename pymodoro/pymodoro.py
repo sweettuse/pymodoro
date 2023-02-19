@@ -343,7 +343,9 @@ class Pymodoro(App):
     ):
         """tick the global timer"""
         await self._update_global_timer(event)
-        self.query_one(GlobalTimerComponent).query_one(TimeSpentContainer).spent_in_current_period = event.elapsed
+        self.query_one(GlobalTimerComponent).query_one(
+            TimeSpentContainer
+        ).spent_in_current_period = event.elapsed
 
     async def on_countdown_timer_widget_completed(
         self, event: CountdownTimerWidget.Completed
@@ -391,6 +393,14 @@ class Pymodoro(App):
     # ==========================================================================
     # helpers
     # ==========================================================================
+
+
+    def focus_scroll_active(self):
+        """focus/scroll to the active timer if one exists"""
+        for ctc in self._ctc_query.filter(".active"):
+            ctc.focus()
+            ctc.scroll_visible()
+            return
 
     async def _update_global_timer(self, event):
         """forward message on to global timer"""
@@ -480,8 +490,8 @@ class Pymodoro(App):
     ) -> None | CountdownTimerState:
         """find a matching timer based on the value in the recently blurred field
 
-        return its state if found
-        otherwise, return None
+        if found, return its state
+        otherwise, return `None`
         """
         if not event.value:
             return None

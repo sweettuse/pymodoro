@@ -77,6 +77,9 @@ class GlobalTimerWidget(Static):
         self.last_seen = int(self.remaining)
         rich_str = self.font.to_rich(self._remaining_str, color=self.color)
         self.update(rich_str)
+    
+    def on_click(self):
+        self.app.focus_scroll_active()
 
     # ==========================================================================
     # event handlers
@@ -146,9 +149,10 @@ class SearchBox(Input):
     async def watch_value(self, value):
         await self.emit(self.Search(self, value))
 
+
 class SearchAndTimeSpent(Static):
     def compose(self) -> ComposeResult:
-        yield TimeSpentContainer.create('')
+        yield TimeSpentContainer.create("")
         yield SearchBox(placeholder="search")
 
 
