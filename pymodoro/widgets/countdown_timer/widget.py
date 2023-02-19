@@ -142,8 +142,7 @@ class CountdownTimerWidget(Static, can_focus=True):
             await self.stop()
 
         text = Align(format_time(self.ct.remaining), "center", vertical="middle")
-        res = Panel(text, title="remaining")
-        self.update(res)
+        self.update(Panel(text, title="remaining"))
 
     async def _update_global_timer(self):
         """let the global timer know how much is remaining"""

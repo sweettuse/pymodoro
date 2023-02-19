@@ -234,9 +234,10 @@ class CountdownTimerComponent(Static, can_focus=True, can_focus_children=True):
         if not search_str:
             return True
 
+        search_str = search_str.casefold()
         return (
-            search_str in self.query_one("#linear", TextInput).value
-            or search_str in self.query_one("#description", TextInput).value
+            search_str in self.query_one("#linear", TextInput).value.casefold()
+            or search_str in self.query_one("#description", TextInput).value.casefold()
         )
 
     def _set_edit_time_classes(

@@ -364,7 +364,7 @@ class Pymodoro(App):
         """check to see if description or linear issue matches either an existing
         or previously deleted countdown timer component.
 
-        if it does, replace this one with the previously deleted one
+        if it does, replace this one with that one
         """
         self._debug(f"blur: {event.value}")
         if not (focused := self._find_focused_or_focused_within()):
