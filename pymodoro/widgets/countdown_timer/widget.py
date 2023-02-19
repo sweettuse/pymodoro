@@ -94,7 +94,7 @@ class CountdownTimerWidget(Static, can_focus=True):
     # ==========================================================================
 
     async def on_mount(self):
-        self._refresh_timer = self.set_interval(1 / 60, self._update, pause=True)
+        self._refresh_timer = self.set_interval(1 / 21, self._update, pause=True)
         self._refresh_global = self.set_interval(
             1 / 5, self._update_global_timer, pause=True
         )
